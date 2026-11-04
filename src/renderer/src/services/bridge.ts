@@ -21,7 +21,10 @@ const browserPreviewBridge: MacIslandBridge = {
   getNotifications: () => Promise.resolve({ permission: 'unknown', badges: [] }),
   onNotifications: () => () => undefined,
   openBadgeApp: () => undefined,
-  openAccessibilitySettings: () => undefined
+  openAccessibilitySettings: () => undefined,
+  getLockState: () => Promise.resolve({ phase: 'unlocked', biometry: 'unknown', error: null }),
+  onLockState: () => () => undefined,
+  requestUnlock: () => undefined
 }
 
 export const bridge: MacIslandBridge = window.macIsland ?? browserPreviewBridge

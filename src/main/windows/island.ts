@@ -1,18 +1,21 @@
 import { join } from 'node:path'
-import { BrowserWindow, screen, type Display } from 'electron'
+import { BrowserWindow, type Display } from 'electron'
 import { IpcChannel, type IslandGeometry } from '@shared/ipc'
-import { computeIslandGeometry, islandWindowBounds } from './geometry'
+import { islandWindowBounds } from './geometry'
 
 export interface IslandWindow {
   window: BrowserWindow
   geometry(): IslandGeometry
+  /** Moves the island to a display and tells the renderer its new geometry. */
+  place(display: Display, geometry: IslandGeometry): void
   setInteractive(interactive: boolean): void
+  /** True while the pointer is over the island. */
+  isInteractive(): boolean
   dispose(): void
 }
 
-export function createIslandWindow(): IslandWindow {
-  let display: Display = screen.getPrimaryDisplay()
-  let geometry = computeIslandGeometry(display)
+export function createIslandWindow(display: Display, initialGeometry: IslandGeometry): IslandWindow {
+  let geometry = initialGeometry
   let interactive = false
 
   const window = new BrowserWindow({
@@ -58,17 +61,6 @@ export function createIslandWindow(): IslandWindow {
   // detect when the pointer reaches the island and ask to become interactive.
   window.setIgnoreMouseEvents(true, { forward: true })
 
-  const reposition = (): void => {
-    display = screen.getPrimaryDisplay()
-    geometry = computeIslandGeometry(display)
-    window.setBounds(islandWindowBounds(display, geometry))
-    window.webContents.send(IpcChannel.GeometryChanged, geometry)
-  }
-
-  screen.on('display-metrics-changed', reposition)
-  screen.on('display-added', reposition)
-  screen.on('display-removed', reposition)
-
   window.once('ready-to-show', () => window.showInactive())
 
   if (process.env['ELECTRON_RENDERER_URL']) {
@@ -80,15 +72,19 @@ export function createIslandWindow(): IslandWindow {
   return {
     window,
     geometry: () => geometry,
+    place(target, next) {
+      if (window.isDestroyed()) return
+      geometry = next
+      window.setBounds(islandWindowBounds(target, next))
+      window.webContents.send(IpcChannel.GeometryChanged, next)
+    },
     setInteractive(next) {
       if (next === interactive || window.isDestroyed()) return
       interactive = next
       window.setIgnoreMouseEvents(!next, { forward: true })
     },
+    isInteractive: () => interactive,
     dispose() {
-      screen.off('display-metrics-changed', reposition)
-      screen.off('display-added', reposition)
-      screen.off('display-removed', reposition)
       if (!window.isDestroyed()) window.destroy()
     }
   }

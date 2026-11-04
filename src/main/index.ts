@@ -1,15 +1,20 @@
-import { app, type Tray } from 'electron'
+import { app, powerMonitor } from 'electron'
 import { IpcChannel } from '@shared/ipc'
-import { createIslandWindow, type IslandWindow } from './windows/island'
-import { registerIslandIpc } from './ipc/island'
-import { registerSystemIpc } from './ipc/system'
 import { registerBrowserIpc } from './ipc/browser'
+import { registerIslandIpc } from './ipc/island'
+import { registerLockIpc } from './ipc/lock'
 import { registerNotificationIpc } from './ipc/notifications'
-import { startNativeHelper, type NativeHelper } from './services/native-helper'
-import { startBrowserBridge, type BrowserBridge } from './services/browser-bridge'
-import { startSystemMonitor, type SystemMonitor } from './services/system-monitor'
+import { registerSystemIpc } from './ipc/system'
 import { applySecurityPolicy } from './security'
+import { createAppLock, visibleBrowserState, visibleNotifications } from './services/app-lock'
+import { startBrowserBridge } from './services/browser-bridge'
+import { startNativeHelper } from './services/native-helper'
+import { loadSettings, saveSettings } from './services/settings'
+import { startSystemMonitor } from './services/system-monitor'
 import { createTray } from './tray'
+import { computeIslandGeometry, type ScreenNotch } from './windows/geometry'
+import { createIslandWindow } from './windows/island'
+import { resolveDisplay, startIslandPlacement } from './windows/placement'
 
 if (process.platform !== 'darwin') {
   console.error('MacIsland only runs on macOS.')
@@ -21,57 +26,116 @@ if (!app.requestSingleInstanceLock()) {
   app.exit(0)
 }
 
-let island: IslandWindow | null = null
-let tray: Tray | null = null
-let monitor: SystemMonitor | null = null
-let browserBridge: BrowserBridge | null = null
-let nativeHelper: NativeHelper | null = null
+/** Cleanup steps, run in reverse order on quit. */
 const disposers: (() => void)[] = []
 
-app.whenReady().then(() => {
+/**
+ * Some callbacks below refer to services created later in this function
+ * (e.g. `tray`, `pushBrowser`). That is safe because they only fire on
+ * later events (sockets, timers, IPC), never during start() itself.
+ */
+function start(): void {
   // An ambient system feature, not a document app: no Dock icon, no app menu.
   app.dock?.hide()
   applySecurityPolicy()
 
-  const islandWindow = createIslandWindow()
-  island = islandWindow
-  disposers.push(registerIslandIpc(islandWindow))
+  const settings = loadSettings()
+  const persist = (): void => saveSettings(settings)
 
-  monitor = startSystemMonitor((stats) => {
-    if (!islandWindow.window.isDestroyed()) islandWindow.window.webContents.send(IpcChannel.SystemStatsChanged, stats)
+  // Island window, placed on the preferred display.
+  const initialDisplay = resolveDisplay(settings.display)
+  const island = createIslandWindow(initialDisplay, computeIslandGeometry(initialDisplay))
+  disposers.push(() => island.dispose())
+  const contents = island.window.webContents
+  const send = (channel: IpcChannel, payload: unknown): void => {
+    if (!island.window.isDestroyed()) contents.send(channel, payload)
+  }
+  disposers.push(registerIslandIpc(island))
+
+  let notches: ReadonlyMap<number, ScreenNotch> = new Map()
+  const placement = startIslandPlacement(island, settings.display, () => notches)
+  disposers.push(() => placement.dispose())
+
+  // System readings.
+  const monitor = startSystemMonitor((stats) => send(IpcChannel.SystemStatsChanged, stats))
+  disposers.push(() => monitor.stop(), registerSystemIpc(monitor, contents))
+
+  // Lock gate: while locked, browser and notification data never reach the renderer.
+  let locked = settings.locked
+  const isLocked = (): boolean => locked
+
+  const browserBridge = startBrowserBridge(() => pushBrowser())
+  disposers.push(() => browserBridge.stop(), registerBrowserIpc(browserBridge, contents, isLocked))
+  const pushBrowser = (): void =>
+    send(IpcChannel.BrowserStateChanged, visibleBrowserState(browserBridge.state(), isLocked()))
+
+  const helper = startNativeHelper({
+    onNotifications: () => pushNotifications(),
+    onScreens: (next) => {
+      notches = next
+      placement.refresh()
+    },
+    onBiometry: (biometry) => appLock.setBiometry(biometry)
   })
-  disposers.push(registerSystemIpc(monitor, islandWindow.window.webContents))
+  disposers.push(() => helper.stop(), registerNotificationIpc(helper, contents, isLocked))
+  const pushNotifications = (): void =>
+    send(IpcChannel.NotificationsChanged, visibleNotifications(helper.notifications(), isLocked()))
 
-  browserBridge = startBrowserBridge((state) => {
-    if (!islandWindow.window.isDestroyed()) islandWindow.window.webContents.send(IpcChannel.BrowserStateChanged, state)
+  const appLock = createAppLock({
+    initiallyLocked: settings.locked,
+    authenticate: (reason) => helper.authenticate(reason),
+    onChange: (state) => {
+      send(IpcChannel.LockStateChanged, state)
+      tray.refresh()
+    },
+    onLockedChanged: (nowLocked) => {
+      locked = nowLocked
+      settings.locked = nowLocked
+      persist()
+      pushBrowser()
+      pushNotifications()
+    }
   })
-  disposers.push(registerBrowserIpc(browserBridge, islandWindow.window.webContents))
+  disposers.push(() => appLock.dispose(), registerLockIpc(appLock, contents))
 
-  nativeHelper = startNativeHelper((state) => {
-    if (!islandWindow.window.isDestroyed()) islandWindow.window.webContents.send(IpcChannel.NotificationsChanged, state)
+  const onMacLocked = (): void => {
+    if (settings.lockWhenMacLocks) appLock.lock()
+  }
+  powerMonitor.on('lock-screen', onMacLocked)
+  disposers.push(() => powerMonitor.off('lock-screen', onMacLocked))
+
+  const tray = createTray({
+    displayPreference: () => placement.preference(),
+    setDisplayPreference(preference) {
+      settings.display = preference
+      persist()
+      placement.setPreference(preference)
+      tray.refresh()
+    },
+    lockState: () => appLock.state(),
+    lock: () => appLock.lock(),
+    unlock: () => void appLock.unlock(),
+    lockWhenMacLocks: () => settings.lockWhenMacLocks,
+    setLockWhenMacLocks(enabled) {
+      settings.lockWhenMacLocks = enabled
+      persist()
+    }
   })
-  disposers.push(registerNotificationIpc(nativeHelper, islandWindow.window.webContents))
+  disposers.push(() => tray.destroy())
 
-  tray = createTray()
+  if (!app.isPackaged) console.info('[island] display', initialDisplay.label, island.geometry())
+}
 
-  if (!app.isPackaged) console.info('[island] geometry', island.geometry())
-}).catch((error: unknown) => {
-  console.error('MacIsland failed to start:', error)
-  app.exit(1)
-})
+app
+  .whenReady()
+  .then(start)
+  .catch((error: unknown) => {
+    console.error('MacIsland failed to start:', error)
+    app.exit(1)
+  })
 
 app.on('before-quit', () => {
-  disposers.splice(0).forEach((dispose) => dispose())
-  monitor?.stop()
-  browserBridge?.stop()
-  nativeHelper?.stop()
-  island?.dispose()
-  tray?.destroy()
-  island = null
-  monitor = null
-  browserBridge = null
-  nativeHelper = null
-  tray = null
+  for (const dispose of disposers.splice(0).reverse()) dispose()
 })
 
 // The island is the whole app; closing it must not leave a headless process

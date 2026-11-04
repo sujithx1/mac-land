@@ -8,6 +8,34 @@ TypeScript, Vite, Tailwind CSS v4 and Framer Motion.
 - Battery, CPU and memory from macOS (`pmset`, `vm_stat`, CPU times).
 - Music and downloads from Brave/Chrome via the MacIsland Connector extension.
 - Unread counts and app icons from Dock badges, via the native MacIsland Helper.
+- Works on every display: grows out of the notch on a MacBook, floats as a pill
+  on external monitors, and can follow your pointer between screens.
+- App-level lock with Touch ID (system password as fallback).
+
+## Displays
+
+Menu bar icon > **Show Island On**:
+
+- **MacBook Display** (default): the built-in screen; falls back to the main
+  display when the lid is closed.
+- **Main Display**: whichever screen has the menu bar in System Settings.
+- **Display with Mouse Pointer**: the island follows you after the pointer rests
+  on another screen for a moment.
+
+The exact notch size of each screen comes from macOS via the helper.
+
+## Lock (Touch ID)
+
+Menu bar icon > **Lock MacIsland** hides music, downloads and notifications
+until you click the island and authenticate with Touch ID or your Mac password.
+**Lock When Mac Locks** does it automatically whenever your screen locks.
+
+- The lock lives in the main process; while locked the island window never
+  receives the hidden data, and play/pause or open-app requests are refused.
+- MacIsland never sees or stores your password: macOS shows and checks the
+  Touch ID / password sheet itself (LocalAuthentication).
+- The lock survives restarts. It protects MacIsland only and never touches the
+  macOS login screen.
 
 ## Notifications (Dock badge counts)
 
@@ -57,7 +85,10 @@ src/
     windows/geometry.ts     display -> island geometry (notch vs floating)
     services/system-monitor.ts  battery, CPU and memory sampling
     services/browser-bridge.ts  local WebSocket server for the extension
-    services/native-helper.ts   launches the Swift helper, receives badge counts
+    services/native-helper.ts   launches the Swift helper: badges, screens, Touch ID
+    services/app-lock.ts        lock state machine and data gating
+    services/settings.ts        display and lock preferences (settings.json)
+    windows/placement.ts        which display the island is on, follow-pointer
   preload/index.ts          contextBridge API exposed as window.macIsland
   renderer/src/
     components/
@@ -74,7 +105,7 @@ src/
       presentation.ts       what the compact island and header show
     types/activity.ts       the snapshot every component reads
 extension/                  Brave/Chrome extension: media + downloads
-native/swift-helper/        MacIsland Helper: Dock badge reader (Swift); Touch ID later
+native/swift-helper/        MacIsland Helper (Swift): Dock badges, screen notch sizes, Touch ID
 ```
 
 ## Testing on macOS

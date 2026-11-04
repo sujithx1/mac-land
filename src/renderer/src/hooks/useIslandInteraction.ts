@@ -19,6 +19,7 @@ export function useIslandInteraction(hasActivity: boolean): {
   onPointerEnter: () => void
   onPointerLeave: () => void
   expand: () => void
+  collapseNow: () => void
 } {
   const [state, dispatch] = useReducer(interactionReducer, initialInteraction)
   const collapseTimer = useRef<number | null>(null)
@@ -42,6 +43,7 @@ export function useIslandInteraction(hasActivity: boolean): {
   }, [cancelCollapse])
 
   const expand = useCallback(() => dispatch({ type: 'expand' }), [])
+  const collapseNow = useCallback(() => dispatch({ type: 'force-collapse' }), [])
 
   // Never leave the window capturing clicks if the island unmounts mid-hover.
   useEffect(
@@ -52,5 +54,12 @@ export function useIslandInteraction(hasActivity: boolean): {
     [cancelCollapse]
   )
 
-  return { mode: islandMode(state, hasActivity), hovering: state.hovering, onPointerEnter, onPointerLeave, expand }
+  return {
+    mode: islandMode(state, hasActivity),
+    hovering: state.hovering,
+    onPointerEnter,
+    onPointerLeave,
+    expand,
+    collapseNow
+  }
 }
