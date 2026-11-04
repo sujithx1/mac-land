@@ -1,0 +1,30 @@
+{
+  "manifest_version": 3,
+  "name": "MacIsland Connector",
+  "version": "0.1.0",
+  "description": "Shows what is playing and your downloads in MacIsland on your Mac. Talks only to MacIsland on this computer.",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAwUjLDI31KfjNZlNw6VtkVYph29gDk320xxZdFkIonUOvc3MD/niP+QKZiO/SEktJvEWIz/6jCnBNTeCBhDPS+a8eLuF2SpJ8RJMSUh+dqAugrsAWMTHSVBTtNs9v2iFicCtBIGJ5jHOvG+waVDUl7uUH0PIEXWjYLxB/apCk+ATguSIM9OVdQmq06wQnvct/yT5qFPOoeZ3eR/4UMshu20ph3SCcVynqhHw9WhU9CzfhMKWn0DN4v2PeddywL+RP8Asd2rZJSBitXjJvG7bjERtiM5fHQe2VcA5EqmAPO1pErUACq5pp4PZ4czY1Ah0jYbi0Lm6aX6SfbLuR8ecBKwIDAQAB",
+  "minimum_chrome_version": "116",
+  "permissions": ["downloads", "alarms", "scripting"],
+  "host_permissions": [
+    "https://www.youtube.com/*",
+    "https://music.youtube.com/*",
+    "https://soundcloud.com/*",
+    "https://open.spotify.com/*",
+    "https://music.apple.com/*"
+  ],
+  "background": { "service_worker": "background.js" },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://www.youtube.com/*",
+        "https://music.youtube.com/*",
+        "https://soundcloud.com/*",
+        "https://open.spotify.com/*",
+        "https://music.apple.com/*"
+      ],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}
