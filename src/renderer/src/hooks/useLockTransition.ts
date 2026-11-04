@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import type { LockState } from '../types/activity'
 
-/** How long the green check shows after a successful unlock. */
-const UNLOCKED_CHECK_MS = 650
+/** How long the Face ID check mark plays after a successful unlock. */
+const UNLOCKED_CHECK_MS = 1000
 
 /**
  * Watches lock phase changes: closes the island when it locks, and after a

@@ -1,6 +1,8 @@
 import type { IslandGeometry } from '@shared/ipc'
 
 export type IslandMode = 'idle' | 'compact' | 'expanded'
+/** Every shape the island can take: the interaction modes plus the Face ID card shown while unlocking. */
+export type IslandShape = IslandMode | 'face-id'
 
 /** Resolved size and placement of the island for one state, in points. */
 export interface IslandFrame {
@@ -19,6 +21,12 @@ export const EXPANDED_WIDTH = 580
 /** Body height with and without the notifications/transfers row. */
 const EXPANDED_BODY_HEIGHT = { withActivityRow: 294, withoutActivityRow: 142 } as const
 const EXPANDED_RADIUS = 30
+
+/** The near-square card shown while unlocking, like Face ID on iPhone. */
+const FACE_ID_WIDTH = 210
+const FACE_ID_EAR = 14
+const FACE_ID_BODY_HEIGHT = 150
+const FACE_ID_RADIUS = 42
 
 /** Header height used when there is no menu bar/notch strip to align with. */
 const FLOATING_HEADER_HEIGHT = 32
@@ -57,11 +65,30 @@ export function expandedHeaderHeight(geometry: IslandGeometry): number {
  */
 export function islandFrame(
   geometry: IslandGeometry,
-  mode: IslandMode,
+  mode: IslandShape,
   hovering: boolean,
   activityRow = true
 ): IslandFrame {
   const isNotch = geometry.variant === 'notch'
+
+  if (mode === 'face-id') {
+    return isNotch
+      ? {
+          // Wide enough to wrap the camera housing; the glyph sits below it.
+          width: Math.max(FACE_ID_WIDTH, geometry.notchWidth + FACE_ID_EAR * 2),
+          height: expandedHeaderHeight(geometry) + FACE_ID_BODY_HEIGHT,
+          top: 0,
+          topRadius: 0,
+          bottomRadius: FACE_ID_RADIUS
+        }
+      : {
+          width: FACE_ID_WIDTH,
+          height: FACE_ID_WIDTH,
+          top: FLOATING_TOP,
+          topRadius: FACE_ID_RADIUS,
+          bottomRadius: FACE_ID_RADIUS
+        }
+  }
 
   if (mode === 'expanded') {
     const body = activityRow ? EXPANDED_BODY_HEIGHT.withActivityRow : EXPANDED_BODY_HEIGHT.withoutActivityRow

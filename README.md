@@ -30,6 +30,11 @@ Menu bar icon > **Lock MacIsland** hides music, downloads and notifications
 until you click the island and authenticate with Touch ID or your Mac password.
 **Lock When Mac Locks** does it automatically whenever your screen locks.
 
+While unlocking, the island opens into a Face ID style card, as on iPhone:
+the face glyph, a spinning scan, then a check mark (or a red face and a shake
+on failure). This is only the look. Macs have no Face ID hardware; the actual
+check is always Touch ID or your password.
+
 - The lock lives in the main process; while locked the island window never
   receives the hidden data, and play/pause or open-app requests are refused.
 - MacIsland never sees or stores your password: macOS shows and checks the

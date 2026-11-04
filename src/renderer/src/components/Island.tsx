@@ -3,11 +3,11 @@ import type { IslandGeometry } from '@shared/ipc'
 import { islandActions, useIslandActivity } from '../hooks/useIslandActivity'
 import { useIslandInteraction } from '../hooks/useIslandInteraction'
 import { useLockTransition } from '../hooks/useLockTransition'
-import { islandFrame } from '../services/island-layout'
+import { expandedHeaderHeight, islandFrame, type IslandShape } from '../services/island-layout'
 import { instant, islandSpring } from '../services/motion'
 import { compactPresentation } from '../services/presentation'
 import { ExpandedPanel } from './ExpandedPanel'
-import { FaceLock } from './FaceLock'
+import { FaceIdCard, LockedCompact } from './FaceLock'
 import { CompactActivity } from './island/CompactActivity'
 import { NotchShoulders } from './island/NotchShoulders'
 
@@ -38,10 +38,12 @@ export function Island({ geometry }: IslandProps): React.JSX.Element {
     }
   })
   const showLock = phase !== 'unlocked' || justUnlocked
+  // The Face ID card stays open from the scan until the check mark or failure has played.
+  const faceIdOpen = phase === 'authenticating' || phase === 'failed' || justUnlocked
   const canRequestUnlock = phase === 'locked' || phase === 'failed'
 
   // While locked the island never opens, whatever the interaction state says.
-  const shownMode = showLock ? 'compact' : mode
+  const shownMode: IslandShape = showLock ? (faceIdOpen ? 'face-id' : 'compact') : mode
   const expanded = shownMode === 'expanded'
   const activityRow =
     snapshot.badges.length > 0 || snapshot.badgePermission === 'denied' || snapshot.transfers.length > 0
@@ -85,8 +87,14 @@ export function Island({ geometry }: IslandProps): React.JSX.Element {
 
         <div className="absolute inset-0 overflow-hidden" style={{ borderRadius: 'inherit' }}>
           <AnimatePresence initial={false}>
-            {showLock && (
-              <FaceLock key="lock" lock={snapshot.lock} justUnlocked={justUnlocked} notchWidth={geometry.notchWidth} />
+            {showLock && !faceIdOpen && <LockedCompact key="lock" notchWidth={geometry.notchWidth} />}
+            {faceIdOpen && (
+              <FaceIdCard
+                key="face-id"
+                lock={snapshot.lock}
+                justUnlocked={justUnlocked}
+                topInset={isNotch ? expandedHeaderHeight(geometry) : 0}
+              />
             )}
             {!showLock && shownMode === 'compact' && (
               <CompactActivity key="compact" snapshot={snapshot} notchWidth={geometry.notchWidth} />

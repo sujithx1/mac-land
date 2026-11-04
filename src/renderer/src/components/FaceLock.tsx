@@ -1,59 +1,120 @@
+import { useEffect, useState } from 'react'
 import { motion, useReducedMotion } from 'framer-motion'
-import { Check, Fingerprint, KeyRound, Lock } from 'lucide-react'
+import type { AuthError } from '@shared/lock'
 import type { LockState } from '../types/activity'
 import { contentEnter, contentExit, instant } from '../services/motion'
+import { FaceIdGlyph, type FaceIdStage } from './island/FaceIdGlyph'
 
-interface FaceLockProps {
-  lock: LockState
-  /** Briefly true after a successful unlock, to show the check mark. */
-  justUnlocked: boolean
-  /** Width hidden behind the hardware notch; content stays clear of it. */
-  notchWidth: number
+const RED = '#ff453a'
+/** How long the resting face shows before the scan starts, as on iPhone. */
+const FACE_BEFORE_SCAN_MS = 450
+
+function useFade(): Pick<React.ComponentProps<typeof motion.div>, 'initial' | 'animate' | 'exit'> {
+  const reduceMotion = useReducedMotion()
+  return {
+    initial: { opacity: 0, filter: 'blur(4px)' },
+    animate: { opacity: 1, filter: 'blur(0px)', transition: reduceMotion ? instant : contentEnter },
+    exit: { opacity: 0, filter: 'blur(4px)', transition: reduceMotion ? instant : contentExit }
+  }
 }
 
-const GREEN = '#30d158'
-const RED = '#ff453a'
-
-/** The locked island: a lock on one side, the way to unlock on the other. */
-export function FaceLock({ lock, justUnlocked, notchWidth }: FaceLockProps): React.JSX.Element {
+/** The resting locked island: a padlock on one side, the Face ID glyph on the other. */
+export function LockedCompact({ notchWidth }: { notchWidth: number }): React.JSX.Element {
   const reduceMotion = useReducedMotion()
-  const authenticating = lock.phase === 'authenticating'
-  const failed = lock.phase === 'failed'
-  const UnlockIcon = lock.biometry === 'none' ? KeyRound : Fingerprint
 
   return (
     <motion.div
       className="pointer-events-none absolute inset-0 flex items-center justify-between px-3.5"
-      initial={{ opacity: 0, filter: 'blur(4px)' }}
-      animate={{ opacity: 1, filter: 'blur(0px)', transition: reduceMotion ? instant : contentEnter }}
-      exit={{ opacity: 0, filter: 'blur(4px)', transition: reduceMotion ? instant : contentExit }}
+      {...useFade()}
     >
-      <motion.span
-        key={justUnlocked ? 'check' : 'lock'}
-        initial={reduceMotion ? false : { scale: 0.6, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        transition={{ type: 'spring', stiffness: 500, damping: 22 }}
-        className="grid place-items-center"
-      >
-        {justUnlocked ? (
-          <Check size={17} strokeWidth={3} style={{ color: GREEN }} />
-        ) : (
-          <Lock size={15} strokeWidth={2.4} style={{ color: failed ? RED : 'rgba(255,255,255,0.88)' }} />
-        )}
-      </motion.span>
+      <svg width={15} height={15} viewBox="0 0 22 22" aria-hidden>
+        {/* The shackle drops into place as the island locks. */}
+        <motion.path
+          d="M7 10.5V7a4 4 0 0 1 8 0v3.5"
+          fill="none"
+          stroke="rgba(255,255,255,0.88)"
+          strokeWidth={2.4}
+          strokeLinecap="round"
+          initial={reduceMotion ? false : { y: -3.5 }}
+          animate={{ y: 0 }}
+          transition={{ type: 'spring', stiffness: 500, damping: 18, delay: 0.12 }}
+        />
+        <rect x={3.5} y={10} width={15} height={11} rx={3} fill="rgba(255,255,255,0.88)" />
+      </svg>
 
       <div style={{ width: notchWidth }} className="shrink-0" />
 
+      <span className="grid place-items-center opacity-70">
+        <FaceIdGlyph stage="face" size={16} />
+      </span>
+    </motion.div>
+  )
+}
+
+const FAILURE_TEXT: Record<AuthError, string> = {
+  failed: 'Not recognized',
+  cancelled: 'Cancelled',
+  lockout: 'Too many attempts',
+  unavailable: 'Touch ID unavailable',
+  busy: 'Try again',
+  timeout: 'Timed out'
+}
+
+function caption(lock: LockState, stage: FaceIdStage): string {
+  if (stage === 'success') return 'Unlocked'
+  if (stage === 'failure') return FAILURE_TEXT[lock.error ?? 'failed']
+  return lock.biometry === 'none' ? 'Enter your Mac password' : 'Touch ID to unlock'
+}
+
+interface FaceIdCardProps {
+  lock: LockState
+  /** True for a moment after a successful unlock, to play the check mark. */
+  justUnlocked: boolean
+  /** Height hidden behind the menu bar and notch; content stays below it. */
+  topInset: number
+}
+
+/**
+ * The island while unlocking, modelled on Face ID on iPhone. The look is
+ * borrowed; the check itself is Touch ID (or the Mac password) via macOS.
+ */
+export function FaceIdCard({ lock, justUnlocked, topInset }: FaceIdCardProps): React.JSX.Element {
+  const authenticating = lock.phase === 'authenticating'
+  const [scanning, setScanning] = useState(false)
+
+  useEffect(() => {
+    if (!authenticating) {
+      setScanning(false)
+      return
+    }
+    const timer = window.setTimeout(() => setScanning(true), FACE_BEFORE_SCAN_MS)
+    return () => window.clearTimeout(timer)
+  }, [authenticating])
+
+  const stage: FaceIdStage = justUnlocked
+    ? 'success'
+    : lock.phase === 'failed'
+      ? 'failure'
+      : scanning
+        ? 'scan'
+        : 'face'
+  const text = caption(lock, stage)
+
+  return (
+    <motion.div
+      className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-3"
+      style={{ paddingTop: topInset }}
+      {...useFade()}
+    >
+      <FaceIdGlyph stage={stage} size={58} color={stage === 'failure' ? RED : '#fff'} />
       <motion.span
-        className="grid place-items-center"
-        animate={
-          authenticating && !reduceMotion
-            ? { opacity: [0.35, 1, 0.35], scale: [0.92, 1.05, 0.92] }
-            : { opacity: justUnlocked ? 0 : 0.6, scale: 1 }
-        }
-        transition={authenticating ? { duration: 1.4, repeat: Infinity, ease: 'easeInOut' } : { duration: 0.2 }}
+        key={text}
+        className="text-[12px] font-medium tracking-[-0.01em] text-white/60"
+        initial={{ opacity: 0, y: 3 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.2 }}
       >
-        <UnlockIcon size={16} strokeWidth={2} style={{ color: failed ? RED : '#fff' }} />
+        {text}
       </motion.span>
     </motion.div>
   )
