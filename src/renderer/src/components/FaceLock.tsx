@@ -6,6 +6,7 @@ import { contentEnter, contentExit, instant } from '../services/motion'
 import { FaceIdGlyph, type FaceIdStage } from './island/FaceIdGlyph'
 
 const RED = '#ff453a'
+const GREEN = '#30d158'
 /** How long the resting face shows before the scan starts, as on iPhone. */
 const FACE_BEFORE_SCAN_MS = 450
 
@@ -108,22 +109,39 @@ interface FaceIdViewProps {
   topInset: number
 }
 
-/** The glyph and caption on the near-square Face ID card. */
+/** The glyph and caption on the near-square Face ID card; green face and check once unlocked. */
 export function FaceIdView({ stage, text, topInset }: FaceIdViewProps): React.JSX.Element {
+  const reduceMotion = useReducedMotion()
+  const success = stage === 'success'
   return (
     <motion.div
       className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-3"
       style={{ paddingTop: topInset }}
       {...useFade()}
     >
-      <FaceIdGlyph stage={stage} size={58} color={stage === 'failure' ? RED : '#fff'} />
+      <FaceIdGlyph stage={stage} size={58} color={success ? GREEN : stage === 'failure' ? RED : '#fff'} />
       <motion.span
         key={text}
-        className="text-[12px] font-medium tracking-[-0.01em] text-white/60"
+        className={`flex items-center gap-1 text-[12px] font-medium tracking-[-0.01em] ${success ? '' : 'text-white/60'}`}
+        style={success ? { color: GREEN } : {}}
         initial={{ opacity: 0, y: 3 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.2 }}
       >
+        {success && (
+          <svg width={13} height={13} viewBox="0 0 16 16" fill="none" aria-hidden>
+            <motion.path
+              d="M3 8.5l3.2 3.2L13 5"
+              stroke={GREEN}
+              strokeWidth={2.2}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              initial={{ pathLength: reduceMotion ? 1 : 0 }}
+              animate={{ pathLength: 1 }}
+              transition={{ duration: reduceMotion ? 0 : 0.3, delay: reduceMotion ? 0 : 0.12, ease: 'easeOut' }}
+            />
+          </svg>
+        )}
         {text || '\u00a0'}
       </motion.span>
     </motion.div>

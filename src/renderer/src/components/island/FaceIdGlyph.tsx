@@ -1,9 +1,9 @@
-import { AnimatePresence, motion, useReducedMotion, type Transition } from 'framer-motion'
+import { motion, useReducedMotion, type Transition } from 'framer-motion'
 
 /**
  * - face:    the resting glyph, corner brackets around a face
  * - scan:    the face fades and the brackets spin, like the iPhone while it looks at you
- * - success: the brackets give way to a circle with a check mark
+ * - success: the whole face returns, settling back to full size (shown in green)
  * - failure: the face returns with a flat mouth
  */
 export type FaceIdStage = 'face' | 'scan' | 'success' | 'failure'
@@ -24,16 +24,15 @@ const EYES = ['M22 22v5', 'M42 22v5']
 const NOSE = 'M32 22v12h-3'
 const SMILE = 'M23 42c5 5 13 5 18 0'
 const FLAT_MOUTH = 'M24 44c5 0 11 0 16 0'
-const CHECK = 'M21 33l7.5 7.5L44 25'
 
 const spring: Transition = { type: 'spring', stiffness: 420, damping: 26 }
-const spin: Transition = { rotate: { duration: 0.9, ease: 'linear', repeat: Infinity }, scale: spring, opacity: spring }
+const spin: Transition = { rotate: { duration: 0.9, ease: 'linear', repeat: Infinity }, scale: spring }
 
 /** Face ID style glyph, drawn as strokes so each part can animate on its own. */
 export function FaceIdGlyph({ stage, size, color = '#fff' }: FaceIdGlyphProps): React.JSX.Element {
   const reduceMotion = useReducedMotion()
   const scanning = stage === 'scan'
-  const showFace = stage === 'face' || stage === 'failure'
+  const showFace = stage !== 'scan'
   const quick: Transition = reduceMotion ? { duration: 0 } : spring
 
   return (
@@ -53,8 +52,7 @@ export function FaceIdGlyph({ stage, size, color = '#fff' }: FaceIdGlyphProps): 
         initial={false}
         animate={{
           rotate: scanning && !reduceMotion ? [0, 360] : 0,
-          scale: stage === 'success' ? 0.6 : scanning ? 0.82 : 1,
-          opacity: stage === 'success' ? 0 : 1
+          scale: scanning ? 0.82 : 1
         }}
         transition={scanning && !reduceMotion ? spin : quick}
       >
@@ -70,28 +68,6 @@ export function FaceIdGlyph({ stage, size, color = '#fff' }: FaceIdGlyphProps): 
         <path d={NOSE} />
         <motion.path initial={false} animate={{ d: stage === 'failure' ? FLAT_MOUTH : SMILE }} transition={quick} />
       </motion.g>
-
-      <AnimatePresence>
-        {stage === 'success' && (
-          <motion.g key="success" exit={{ opacity: 0 }}>
-            <motion.circle
-              cx={32}
-              cy={32}
-              r={27}
-              initial={{ pathLength: reduceMotion ? 1 : 0, rotate: -90 }}
-              animate={{ pathLength: 1 }}
-              transition={{ duration: reduceMotion ? 0 : 0.35, ease: [0.4, 0, 0.2, 1] }}
-            />
-            <motion.path
-              d={CHECK}
-              strokeWidth={4}
-              initial={{ pathLength: reduceMotion ? 1 : 0 }}
-              animate={{ pathLength: 1 }}
-              transition={{ duration: reduceMotion ? 0 : 0.28, delay: reduceMotion ? 0 : 0.22, ease: 'easeOut' }}
-            />
-          </motion.g>
-        )}
-      </AnimatePresence>
     </svg>
   )
 }

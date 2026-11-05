@@ -31,7 +31,7 @@ until you click the island and authenticate with Touch ID or your Mac password.
 **Lock When Mac Locks** does it automatically whenever your screen locks.
 
 While unlocking, the island opens into a Face ID style card, as on iPhone:
-the face glyph, a spinning scan, then a check mark (or a red face and a shake
+the face glyph, a spinning scan, then a green face with a green check (or a red face and a shake
 on failure). This is only the look. Macs have no Face ID hardware; the actual
 check is always Touch ID or your password.
 
