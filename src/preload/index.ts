@@ -61,6 +61,11 @@ const bridge: MacIslandBridge = {
   },
   requestUnlock() {
     ipcRenderer.send(IpcChannel.RequestUnlock)
+  },
+  onMacUnlocked(listener) {
+    const handler = (): void => listener()
+    ipcRenderer.on(IpcChannel.MacUnlocked, handler)
+    return () => ipcRenderer.off(IpcChannel.MacUnlocked, handler)
   }
 }
 

@@ -35,6 +35,16 @@ the face glyph, a spinning scan, then a check mark (or a red face and a shake
 on failure). This is only the look. Macs have no Face ID hardware; the actual
 check is always Touch ID or your password.
 
+When you unlock the Mac itself (Touch ID or password at the macOS lock
+screen), the island plays the same face and check mark animation. It only
+reacts after macOS has unlocked; it never touches the lock screen. Turn it
+off with **Face ID Animation on Unlock** in the menu bar menu.
+
+With **Lock When Mac Locks** on, unlocking the Mac also opens MacIsland,
+because macOS has just checked Touch ID or your password. A lock you set
+yourself with **Lock MacIsland** stays locked until MacIsland's own Touch ID,
+and so does a lock restored after a restart.
+
 - The lock lives in the main process; while locked the island window never
   receives the hidden data, and play/pause or open-app requests are refused.
 - MacIsland never sees or stores your password: macOS shows and checks the

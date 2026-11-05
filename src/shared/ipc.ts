@@ -37,7 +37,9 @@ export const IpcChannel = {
   /** main -> renderer (push): lock state changed. */
   LockStateChanged: 'lock:changed',
   /** renderer -> main (send): ask main to show Touch ID; the renderer cannot unlock itself. */
-  RequestUnlock: 'lock:request-unlock'
+  RequestUnlock: 'lock:request-unlock',
+  /** main -> renderer (push): the Mac was just unlocked at the macOS lock screen. */
+  MacUnlocked: 'system:mac-unlocked'
 } as const
 
 export type IpcChannel = (typeof IpcChannel)[keyof typeof IpcChannel]
@@ -81,4 +83,6 @@ export interface MacIslandBridge {
   /** Returns an unsubscribe function. */
   onLockState(listener: (state: LockState) => void): () => void
   requestUnlock(): void
+  /** Fires after the Mac is unlocked. Returns an unsubscribe function. */
+  onMacUnlocked(listener: () => void): () => void
 }

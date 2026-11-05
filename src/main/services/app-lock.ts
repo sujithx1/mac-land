@@ -11,12 +11,23 @@ const FAILED_VISIBLE_MS = 1500
 export interface AppLock {
   state(): LockState
   isLocked(): boolean
-  lock(): void
+  /** 'mac' when locking because the Mac's screen locked; such a lock opens with the Mac. */
+  lock(cause?: LockCause): void
   /** Resolves true once unlocked; false if the user cancelled or failed. */
   unlock(): Promise<boolean>
+  /** Whether the current lock came from the Mac locking and can open with it. */
+  lockedByMac(): boolean
+  /**
+   * Opens a lock that came from the Mac locking, after macOS itself has
+   * checked Touch ID or the password. Returns false and changes nothing
+   * for a lock set by the user.
+   */
+  unlockWithMac(): boolean
   setBiometry(biometry: Biometry): void
   dispose(): void
 }
+
+export type LockCause = 'user' | 'mac'
 
 interface AppLockOptions {
   initiallyLocked: boolean
@@ -33,6 +44,8 @@ interface AppLockOptions {
 export function createAppLock(options: AppLockOptions): AppLock {
   let state: LockState = { phase: options.initiallyLocked ? 'locked' : 'unlocked', biometry: 'unknown', error: null }
   let failedTimer: NodeJS.Timeout | null = null
+  // Never true after a restart: a lock restored from settings needs Touch ID.
+  let byMac = false
 
   const set = (next: Partial<LockState>): void => {
     const wasLocked = state.phase !== 'unlocked'
@@ -45,8 +58,10 @@ export function createAppLock(options: AppLockOptions): AppLock {
   return {
     state: () => state,
     isLocked: () => state.phase !== 'unlocked',
-    lock() {
-      if (state.phase === 'unlocked') set({ phase: 'locked', error: null })
+    lock(cause = 'user') {
+      if (state.phase !== 'unlocked') return
+      byMac = cause === 'mac'
+      set({ phase: 'locked', error: null })
     },
     async unlock() {
       if (state.phase === 'unlocked') return true
@@ -56,6 +71,7 @@ export function createAppLock(options: AppLockOptions): AppLock {
       set({ phase: 'authenticating', error: null })
       const outcome = await options.authenticate(UNLOCK_REASON)
       if (outcome.success) {
+        byMac = false
         set({ phase: 'unlocked', error: null })
         return true
       }
@@ -68,6 +84,14 @@ export function createAppLock(options: AppLockOptions): AppLock {
         if (state.phase === 'failed') set({ phase: 'locked', error: null })
       }, FAILED_VISIBLE_MS)
       return false
+    },
+    lockedByMac: () => byMac && (state.phase === 'locked' || state.phase === 'failed'),
+    unlockWithMac() {
+      if (!byMac || (state.phase !== 'locked' && state.phase !== 'failed')) return false
+      if (failedTimer) clearTimeout(failedTimer)
+      byMac = false
+      set({ phase: 'unlocked', error: null })
+      return true
     },
     setBiometry(biometry) {
       if (biometry !== state.biometry) set({ biometry })

@@ -3,6 +3,7 @@ import type { IslandGeometry } from '@shared/ipc'
 import { islandActions, useIslandActivity } from '../hooks/useIslandActivity'
 import { useIslandInteraction } from '../hooks/useIslandInteraction'
 import { useLockTransition } from '../hooks/useLockTransition'
+import { useMacUnlockAnimation } from '../hooks/useMacUnlockAnimation'
 import {
   expandedBodyHeight,
   expandedHeaderHeight,
@@ -13,7 +14,7 @@ import {
 import { instant, islandSpring } from '../services/motion'
 import { compactPresentation } from '../services/presentation'
 import { ExpandedPanel } from './ExpandedPanel'
-import { FaceIdCard, LockedCompact } from './FaceLock'
+import { FaceIdCard, FaceIdView, LockedCompact } from './FaceLock'
 import { CompactActivity } from './island/CompactActivity'
 import { NotchShoulders } from './island/NotchShoulders'
 
@@ -47,9 +48,19 @@ export function Island({ geometry }: IslandProps): React.JSX.Element {
   // The Face ID card stays open from the scan until the check mark or failure has played.
   const faceIdOpen = phase === 'authenticating' || phase === 'failed' || justUnlocked
   const canRequestUnlock = phase === 'locked' || phase === 'failed'
+  // Just after the Mac itself was unlocked. Main only sends this when MacIsland
+  // is unlocked or opening with the Mac, so it may cover the lock as it opens.
+  const macUnlockStage = useMacUnlockAnimation()
+  const macUnlocking = macUnlockStage !== null
 
   // While locked the island never opens, whatever the interaction state says.
-  const shownMode: IslandShape = showLock ? (faceIdOpen ? 'face-id' : 'compact') : mode
+  const shownMode: IslandShape = macUnlocking
+    ? 'face-id'
+    : showLock
+      ? faceIdOpen
+        ? 'face-id'
+        : 'compact'
+      : mode
   const expanded = shownMode === 'expanded'
   const activity: PanelContent = {
     hasTrack: snapshot.nowPlaying !== null,
@@ -59,7 +70,15 @@ export function Island({ geometry }: IslandProps): React.JSX.Element {
   const frame = islandFrame(geometry, shownMode, hovering, expandedBodyHeight(activity))
   const isNotch = geometry.variant === 'notch'
 
-  const onClick = showLock ? (canRequestUnlock ? islandActions.requestUnlock : undefined) : expanded ? undefined : expand
+  const onClick = macUnlocking
+    ? undefined
+    : showLock
+      ? canRequestUnlock
+        ? islandActions.requestUnlock
+        : undefined
+      : expanded
+        ? undefined
+        : expand
   const label = showLock ? 'MacIsland is locked. Click to unlock.' : expanded ? 'MacIsland' : 'Open MacIsland'
 
   return (
@@ -96,8 +115,8 @@ export function Island({ geometry }: IslandProps): React.JSX.Element {
 
         <div className="absolute inset-0 overflow-hidden" style={{ borderRadius: 'inherit' }}>
           <AnimatePresence initial={false}>
-            {showLock && !faceIdOpen && <LockedCompact key="lock" notchWidth={geometry.notchWidth} />}
-            {faceIdOpen && (
+            {showLock && !faceIdOpen && !macUnlocking && <LockedCompact key="lock" notchWidth={geometry.notchWidth} />}
+            {faceIdOpen && !macUnlocking && (
               <FaceIdCard
                 key="face-id"
                 lock={snapshot.lock}
@@ -105,7 +124,15 @@ export function Island({ geometry }: IslandProps): React.JSX.Element {
                 topInset={isNotch ? expandedHeaderHeight(geometry) : 0}
               />
             )}
-            {!showLock && shownMode === 'compact' && (
+            {macUnlocking && (
+              <FaceIdView
+                key="mac-unlock"
+                stage={macUnlockStage}
+                text={macUnlockStage === 'success' ? 'Unlocked' : ''}
+                topInset={isNotch ? expandedHeaderHeight(geometry) : 0}
+              />
+            )}
+            {!showLock && !macUnlocking && shownMode === 'compact' && (
               <CompactActivity key="compact" snapshot={snapshot} notchWidth={geometry.notchWidth} />
             )}
             {expanded && (

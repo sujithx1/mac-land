@@ -98,8 +98,18 @@ export function FaceIdCard({ lock, justUnlocked, topInset }: FaceIdCardProps): R
       : scanning
         ? 'scan'
         : 'face'
-  const text = caption(lock, stage)
+  return <FaceIdView stage={stage} text={caption(lock, stage)} topInset={topInset} />
+}
 
+interface FaceIdViewProps {
+  stage: FaceIdStage
+  /** Shown under the glyph; empty keeps the space so the glyph does not move. */
+  text: string
+  topInset: number
+}
+
+/** The glyph and caption on the near-square Face ID card. */
+export function FaceIdView({ stage, text, topInset }: FaceIdViewProps): React.JSX.Element {
   return (
     <motion.div
       className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-3"
@@ -114,7 +124,7 @@ export function FaceIdCard({ lock, justUnlocked, topInset }: FaceIdCardProps): R
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.2 }}
       >
-        {text}
+        {text || '\u00a0'}
       </motion.span>
     </motion.div>
   )

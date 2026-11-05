@@ -102,10 +102,26 @@ function start(): void {
   disposers.push(() => appLock.dispose(), registerLockIpc(appLock, contents))
 
   const onMacLocked = (): void => {
-    if (settings.lockWhenMacLocks) appLock.lock()
+    if (settings.lockWhenMacLocks) appLock.lock('mac')
   }
   powerMonitor.on('lock-screen', onMacLocked)
   disposers.push(() => powerMonitor.off('lock-screen', onMacLocked))
+
+  // macOS has just checked Touch ID or the password. A lock that came from
+  // the Mac locking opens with it; a lock set from the menu still needs
+  // MacIsland's own Touch ID, and the animation is skipped for it.
+  const onMacUnlocked = (): void => {
+    const opensLock = appLock.lockedByMac()
+    const animate = settings.animateMacUnlock && (!locked || opensLock)
+    if (!app.isPackaged) {
+      console.info('[island] mac unlocked:', opensLock ? 'lock opened,' : '', 'animation', animate ? 'played' : 'skipped')
+    }
+    // Animation first, so the Face ID card already covers the island as the lock opens.
+    if (animate) send(IpcChannel.MacUnlocked, null)
+    if (opensLock) appLock.unlockWithMac()
+  }
+  powerMonitor.on('unlock-screen', onMacUnlocked)
+  disposers.push(() => powerMonitor.off('unlock-screen', onMacUnlocked))
 
   const tray = createTray({
     displayPreference: () => placement.preference(),
@@ -123,7 +139,12 @@ function start(): void {
       settings.lockWhenMacLocks = enabled
       persist()
     },
-    badgePermission: () => helper.notifications().permission
+    badgePermission: () => helper.notifications().permission,
+    animateMacUnlock: () => settings.animateMacUnlock,
+    setAnimateMacUnlock(enabled) {
+      settings.animateMacUnlock = enabled
+      persist()
+    }
   })
   disposers.push(() => tray.destroy())
 

@@ -55,6 +55,8 @@ export interface TrayController {
   setLockWhenMacLocks(enabled: boolean): void
   /** Whether MacIsland Helper may read Dock badge counts. */
   badgePermission(): BadgePermission
+  animateMacUnlock(): boolean
+  setAnimateMacUnlock(enabled: boolean): void
 }
 
 export interface IslandTray {
@@ -96,6 +98,12 @@ export function createTray(controller: TrayController): IslandTray {
           type: 'checkbox',
           checked: controller.lockWhenMacLocks(),
           click: (item) => controller.setLockWhenMacLocks(item.checked)
+        },
+        {
+          label: 'Face ID Animation on Unlock',
+          type: 'checkbox',
+          checked: controller.animateMacUnlock(),
+          click: (item) => controller.setAnimateMacUnlock(item.checked)
         },
         { type: 'separator' },
         // Only while access is missing: without it there are no unread counts.

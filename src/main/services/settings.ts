@@ -18,9 +18,11 @@ export interface Settings {
   locked: boolean
   /** Lock MacIsland whenever the Mac's screen locks. */
   lockWhenMacLocks: boolean
+  /** Play the Face ID style animation in the island after the Mac is unlocked. */
+  animateMacUnlock: boolean
 }
 
-const DEFAULTS: Settings = { display: 'builtin', locked: false, lockWhenMacLocks: false }
+const DEFAULTS: Settings = { display: 'builtin', locked: false, lockWhenMacLocks: false, animateMacUnlock: true }
 
 const settingsPath = (): string => join(app.getPath('userData'), 'settings.json')
 
@@ -30,9 +32,14 @@ export function loadSettings(): Settings {
     const raw: unknown = JSON.parse(readFileSync(settingsPath(), 'utf8'))
     const stored = typeof raw === 'object' && raw !== null ? (raw as Record<string, unknown>) : {}
     const display = DISPLAY_PREFERENCES.find((value) => value === stored['display']) ?? DEFAULTS.display
-    const flag = (key: 'locked' | 'lockWhenMacLocks'): boolean =>
+    const flag = (key: 'locked' | 'lockWhenMacLocks' | 'animateMacUnlock'): boolean =>
       typeof stored[key] === 'boolean' ? stored[key] : DEFAULTS[key]
-    return { display, locked: flag('locked'), lockWhenMacLocks: flag('lockWhenMacLocks') }
+    return {
+      display,
+      locked: flag('locked'),
+      lockWhenMacLocks: flag('lockWhenMacLocks'),
+      animateMacUnlock: flag('animateMacUnlock')
+    }
   } catch {
     return { ...DEFAULTS }
   }
