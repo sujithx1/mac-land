@@ -1,21 +1,26 @@
 import { motion, useReducedMotion } from 'framer-motion'
+import { Battery, BatteryCharging, BatteryFull, BatteryLow, BatteryMedium, type LucideIcon } from 'lucide-react'
 import type { IslandGeometry } from '@shared/ipc'
 import type { BatteryStatus, IslandActions, IslandSnapshot } from '../types/activity'
-import { EXPANDED_WIDTH, expandedHeaderHeight } from '../services/island-layout'
+import {
+  EXPANDED_WIDTH,
+  expandedHeaderHeight,
+  showsNotifications,
+  type ActivityRowContent
+} from '../services/island-layout'
 import { contentEnter, contentExit, instant } from '../services/motion'
 import { currentActivityLabel } from '../services/presentation'
 import { formatMinutes } from '../services/format'
 import { MusicPlayer } from './MusicPlayer'
 import { Notifications } from './Notifications'
-import { SystemStatus, batteryIcon } from './SystemStatus'
 import { TransferProgress } from './TransferProgress'
 
 interface ExpandedPanelProps {
   geometry: IslandGeometry
   /** Final island height, so content is laid out once at full size. */
   height: number
-  /** Whether there are notifications, a permission request or transfers to show. */
-  activityRow: boolean
+  /** What the notifications/transfers row has to show; empty sections are left out. */
+  activity: ActivityRowContent
   snapshot: IslandSnapshot
   actions: IslandActions
 }
@@ -24,8 +29,10 @@ interface ExpandedPanelProps {
  * Laid out at its final size from the first frame and revealed by the
  * island's growing clip, so nothing reflows while the shape animates.
  */
-export function ExpandedPanel({ geometry, height, activityRow, snapshot, actions }: ExpandedPanelProps): React.JSX.Element {
+export function ExpandedPanel({ geometry, height, activity, snapshot, actions }: ExpandedPanelProps): React.JSX.Element {
   const reduceMotion = useReducedMotion()
+  const notifications = showsNotifications(activity)
+  const transfers = activity.transfers > 0
 
   return (
     <motion.div
@@ -37,28 +44,35 @@ export function ExpandedPanel({ geometry, height, activityRow, snapshot, actions
     >
       <Header geometry={geometry} snapshot={snapshot} />
 
-      {/* minmax(0, …) lets long titles truncate instead of pushing the stats card out. */}
-      <div className="mt-2 grid grid-cols-[minmax(0,1fr)_176px] gap-4">
+      <div className="mt-2 min-w-0">
         <MusicPlayer nowPlaying={snapshot.nowPlaying} actions={actions} />
-        <SystemStatus system={snapshot.system} />
       </div>
 
-      {activityRow && (
+      {(notifications || transfers) && (
         <>
           <div className="my-3 h-px shrink-0 bg-white/[0.08]" />
-          <div className="grid min-h-0 flex-1 grid-cols-2 gap-5">
-            <Notifications
-              badges={snapshot.badges}
-              permission={snapshot.badgePermission}
-              onOpenApp={actions.openBadgeApp}
-              onOpenSettings={actions.openAccessibilitySettings}
-            />
-            <TransferProgress transfers={snapshot.transfers} />
+          {/* A section with nothing in it is left out; a lone section takes the full width. */}
+          <div className={`grid min-h-0 gap-5 ${notifications && transfers ? 'grid-cols-2' : 'grid-cols-1'}`}>
+            {notifications && (
+              <Notifications
+                badges={snapshot.badges}
+                onOpenApp={actions.openBadgeApp}
+              />
+            )}
+            {transfers && <TransferProgress transfers={snapshot.transfers} />}
           </div>
         </>
       )}
     </motion.div>
   )
+}
+
+function batteryIcon(battery: BatteryStatus): LucideIcon {
+  if (battery.state === 'charging') return BatteryCharging
+  if (battery.percent >= 90) return BatteryFull
+  if (battery.percent >= 50) return BatteryMedium
+  if (battery.percent >= 20) return Battery
+  return BatteryLow
 }
 
 /** Sits in the menu bar strip, either side of the notch. */

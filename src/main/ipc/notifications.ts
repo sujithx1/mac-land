@@ -4,8 +4,6 @@ import { visibleNotifications } from '../services/app-lock'
 import type { NativeHelper } from '../services/native-helper'
 import { IpcValidationError, assertTrustedSender } from './validate'
 
-const ACCESSIBILITY_SETTINGS = 'x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility'
-
 export function registerNotificationIpc(helper: NativeHelper, owner: WebContents, isLocked: () => boolean): () => void {
   ipcMain.handle(IpcChannel.GetNotifications, (event) => {
     assertTrustedSender(event, owner)
@@ -25,18 +23,8 @@ export function registerNotificationIpc(helper: NativeHelper, owner: WebContents
     }
   })
 
-  ipcMain.on(IpcChannel.OpenAccessibilitySettings, (event) => {
-    try {
-      assertTrustedSender(event, owner)
-      void shell.openExternal(ACCESSIBILITY_SETTINGS)
-    } catch (error) {
-      console.warn(`[ipc] ${IpcChannel.OpenAccessibilitySettings}:`, (error as Error).message)
-    }
-  })
-
   return () => {
     ipcMain.removeHandler(IpcChannel.GetNotifications)
     ipcMain.removeAllListeners(IpcChannel.OpenBadgeApp)
-    ipcMain.removeAllListeners(IpcChannel.OpenAccessibilitySettings)
   }
 }

@@ -1,11 +1,11 @@
 import type { LockState } from '@shared/lock'
 import type { NowPlaying, Transfer } from '@shared/media'
-import type { AppBadge, BadgePermission } from '@shared/notifications'
+import type { AppBadge } from '@shared/notifications'
 import type { SystemStats } from '@shared/system'
 
 export type { BatteryStatus, SystemStats } from '@shared/system'
 export type { NowPlaying, Track, Transfer, TransferKind } from '@shared/media'
-export type { AppBadge, BadgePermission } from '@shared/notifications'
+export type { AppBadge } from '@shared/notifications'
 export type { LockState } from '@shared/lock'
 
 /**
@@ -19,7 +19,6 @@ export interface IslandSnapshot {
   system: SystemStats | null
   /** Unread counts from Dock icons. */
   badges: readonly AppBadge[]
-  badgePermission: BadgePermission
   /** App-level lock; while locked, main sends no music, badges or downloads. */
   lock: LockState
   transfers: readonly Transfer[]
@@ -30,7 +29,6 @@ export interface IslandActions {
   nextTrack(): void
   previousTrack(): void
   openBadgeApp(path: string): void
-  openAccessibilitySettings(): void
   /** Asks main to show Touch ID; only main can unlock. */
   requestUnlock(): void
 }

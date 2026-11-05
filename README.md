@@ -5,7 +5,7 @@ TypeScript, Vite, Tailwind CSS v4 and Framer Motion.
 
 **Status:** Phase 2 UI with real data only:
 
-- Battery, CPU and memory from macOS (`pmset`, `vm_stat`, CPU times).
+- Battery level and charging state from macOS (`pmset`), beside the notch.
 - Music and downloads from Brave/Chrome via the MacIsland Connector extension.
 - Unread counts and app icons from Dock badges, via the native MacIsland Helper.
 - Works on every display: grows out of the notch on a MacBook, floats as a pill
@@ -51,7 +51,8 @@ The first time you run MacIsland, macOS asks to allow **MacIsland Helper** in
 System Settings > Privacy & Security > Accessibility. Turn it on. The helper
 only reads badge counts, app names and icons; it cannot read message contents.
 Rebuilding the helper (only when `native/swift-helper/Sources/main.swift`
-changes) means allowing it again.
+changes) means allowing it again. While access is missing, the menu bar icon's
+menu has **Allow Notification Counts…**, which opens that settings page.
 
 ## Browser extension (music and downloads)
 
@@ -99,7 +100,7 @@ src/
     components/
       Island.tsx            shell: shape, spring, which content is shown
       ExpandedPanel.tsx     expanded layout and menu-bar header
-      MusicPlayer.tsx, SystemStatus.tsx, Notifications.tsx, TransferProgress.tsx
+      MusicPlayer.tsx, Notifications.tsx, TransferProgress.tsx
       island/               compact ears, equalizer, notch shoulders
       ui/                   artwork, progress bar/ring, icon button
     hooks/                  geometry sync, activity snapshot, hover/expand/collapse
@@ -123,4 +124,4 @@ native/swift-helper/        MacIsland Helper (Swift): Dock badges, screen notch 
 4. Switch to a full-screen app and to another Space: the island stays visible.
 5. Change the display resolution in System Settings > Displays: the island re-centres.
 6. Click the island to expand it; move the pointer away to collapse.
-   Battery, CPU and memory match Activity Monitor and update every 2 seconds.
+   The battery percentage beside the notch matches the one in the menu bar.

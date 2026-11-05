@@ -16,7 +16,6 @@ export function createLiveActivitySource(bridge: MacIslandBridge): ActivitySourc
     nowPlaying: null,
     system: null,
     badges: [],
-    badgePermission: 'unknown',
     // Safe default: the renderer holds no data until main sends it, and main
     // only sends what the lock allows. The real state arrives right away.
     lock: { phase: 'unlocked', biometry: 'unknown', error: null },
@@ -31,8 +30,7 @@ export function createLiveActivitySource(bridge: MacIslandBridge): ActivitySourc
   const applyBrowserState = ({ nowPlaying, transfers }: BrowserState): void =>
     emit({ ...snapshot, nowPlaying, transfers })
 
-  const applyNotifications = ({ permission, badges }: NotificationState): void =>
-    emit({ ...snapshot, badgePermission: permission, badges })
+  const applyNotifications = ({ badges }: NotificationState): void => emit({ ...snapshot, badges })
 
   const applyLock = (lock: LockState): void => emit({ ...snapshot, lock })
 
@@ -85,7 +83,6 @@ export function createLiveActivitySource(bridge: MacIslandBridge): ActivitySourc
     nextTrack: () => bridge.sendMediaCommand('next'),
     previousTrack: () => bridge.sendMediaCommand('previous'),
     openBadgeApp: (path) => bridge.openBadgeApp(path),
-    openAccessibilitySettings: () => bridge.openAccessibilitySettings(),
     requestUnlock: () => bridge.requestUnlock()
   }
 }

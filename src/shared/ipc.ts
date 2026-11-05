@@ -32,8 +32,6 @@ export const IpcChannel = {
   NotificationsChanged: 'notifications:changed',
   /** renderer -> main (send): open an app that currently has a badge. */
   OpenBadgeApp: 'notifications:open-app',
-  /** renderer -> main (send): open System Settings > Privacy > Accessibility. */
-  OpenAccessibilitySettings: 'notifications:open-settings',
   /** renderer -> main (invoke): current lock state. */
   GetLockState: 'lock:get',
   /** main -> renderer (push): lock state changed. */
@@ -79,7 +77,6 @@ export interface MacIslandBridge {
   /** Returns an unsubscribe function. */
   onNotifications(listener: (state: NotificationState) => void): () => void
   openBadgeApp(path: string): void
-  openAccessibilitySettings(): void
   getLockState(): Promise<LockState>
   /** Returns an unsubscribe function. */
   onLockState(listener: (state: LockState) => void): () => void

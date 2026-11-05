@@ -51,9 +51,6 @@ const bridge: MacIslandBridge = {
   openBadgeApp(path) {
     ipcRenderer.send(IpcChannel.OpenBadgeApp, path)
   },
-  openAccessibilitySettings() {
-    ipcRenderer.send(IpcChannel.OpenAccessibilitySettings)
-  },
   getLockState() {
     return ipcRenderer.invoke(IpcChannel.GetLockState) as Promise<LockState>
   },

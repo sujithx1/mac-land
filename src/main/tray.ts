@@ -1,6 +1,9 @@
-import { Menu, Tray, app, nativeImage, type NativeImage } from 'electron'
+import { Menu, Tray, app, nativeImage, shell, type NativeImage } from 'electron'
 import type { LockState } from '@shared/lock'
+import type { BadgePermission } from '@shared/notifications'
 import { DISPLAY_PREFERENCES, DISPLAY_PREFERENCE_LABELS, type DisplayPreference } from './services/settings'
+
+const ACCESSIBILITY_SETTINGS = 'x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility'
 
 /**
  * Draws a small pill as a macOS template image so the menu bar tints it
@@ -50,6 +53,8 @@ export interface TrayController {
   unlock(): void
   lockWhenMacLocks(): boolean
   setLockWhenMacLocks(enabled: boolean): void
+  /** Whether MacIsland Helper may read Dock badge counts. */
+  badgePermission(): BadgePermission
 }
 
 export interface IslandTray {
@@ -93,6 +98,13 @@ export function createTray(controller: TrayController): IslandTray {
           click: (item) => controller.setLockWhenMacLocks(item.checked)
         },
         { type: 'separator' },
+        // Only while access is missing: without it there are no unread counts.
+        ...(controller.badgePermission() === 'denied'
+          ? [
+              { label: 'Allow Notification Counts…', click: () => void shell.openExternal(ACCESSIBILITY_SETTINGS) },
+              { type: 'separator' as const }
+            ]
+          : []),
         { label: 'Quit MacIsland', accelerator: 'Command+Q', click: () => app.quit() }
       ])
     )

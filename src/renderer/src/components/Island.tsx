@@ -3,7 +3,13 @@ import type { IslandGeometry } from '@shared/ipc'
 import { islandActions, useIslandActivity } from '../hooks/useIslandActivity'
 import { useIslandInteraction } from '../hooks/useIslandInteraction'
 import { useLockTransition } from '../hooks/useLockTransition'
-import { expandedHeaderHeight, islandFrame, type IslandShape } from '../services/island-layout'
+import {
+  expandedBodyHeight,
+  expandedHeaderHeight,
+  islandFrame,
+  type IslandShape,
+  type PanelContent
+} from '../services/island-layout'
 import { instant, islandSpring } from '../services/motion'
 import { compactPresentation } from '../services/presentation'
 import { ExpandedPanel } from './ExpandedPanel'
@@ -45,9 +51,12 @@ export function Island({ geometry }: IslandProps): React.JSX.Element {
   // While locked the island never opens, whatever the interaction state says.
   const shownMode: IslandShape = showLock ? (faceIdOpen ? 'face-id' : 'compact') : mode
   const expanded = shownMode === 'expanded'
-  const activityRow =
-    snapshot.badges.length > 0 || snapshot.badgePermission === 'denied' || snapshot.transfers.length > 0
-  const frame = islandFrame(geometry, shownMode, hovering, activityRow)
+  const activity: PanelContent = {
+    hasTrack: snapshot.nowPlaying !== null,
+    badges: snapshot.badges.length,
+    transfers: snapshot.transfers.length
+  }
+  const frame = islandFrame(geometry, shownMode, hovering, expandedBodyHeight(activity))
   const isNotch = geometry.variant === 'notch'
 
   const onClick = showLock ? (canRequestUnlock ? islandActions.requestUnlock : undefined) : expanded ? undefined : expand
@@ -104,7 +113,7 @@ export function Island({ geometry }: IslandProps): React.JSX.Element {
                 key="expanded"
                 geometry={geometry}
                 height={frame.height}
-                activityRow={activityRow}
+                activity={activity}
                 snapshot={snapshot}
                 actions={islandActions}
               />

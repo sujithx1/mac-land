@@ -70,7 +70,10 @@ function start(): void {
     send(IpcChannel.BrowserStateChanged, visibleBrowserState(browserBridge.state(), isLocked()))
 
   const helper = startNativeHelper({
-    onNotifications: () => pushNotifications(),
+    onNotifications: () => {
+      pushNotifications()
+      tray.refresh()
+    },
     onScreens: (next) => {
       notches = next
       placement.refresh()
@@ -119,7 +122,8 @@ function start(): void {
     setLockWhenMacLocks(enabled) {
       settings.lockWhenMacLocks = enabled
       persist()
-    }
+    },
+    badgePermission: () => helper.notifications().permission
   })
   disposers.push(() => tray.destroy())
 
