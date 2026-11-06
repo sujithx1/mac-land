@@ -17,7 +17,7 @@ export interface IslandFrame {
 export const SHOULDER_RADIUS = 8
 
 /** Size of the expanded panel below its header row. */
-export const EXPANDED_WIDTH = 580
+export const EXPANDED_WIDTH = 460
 /** Music row plus padding: a track with controls, or the shorter "Not Playing" row. */
 const EXPANDED_MUSIC_HEIGHT = { playing: 142, idle: 89 } as const
 const EXPANDED_RADIUS = 30
