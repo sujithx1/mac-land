@@ -4,6 +4,7 @@
  * or changed payload is a compile error rather than a silent runtime bug.
  */
 
+import type { LockState } from './lock'
 import type { BrowserState, MediaCommand } from './media'
 import type { NotificationState } from './notifications'
 import type { SystemStats } from './system'
@@ -31,8 +32,14 @@ export const IpcChannel = {
   NotificationsChanged: 'notifications:changed',
   /** renderer -> main (send): open an app that currently has a badge. */
   OpenBadgeApp: 'notifications:open-app',
-  /** renderer -> main (send): open System Settings > Privacy > Accessibility. */
-  OpenAccessibilitySettings: 'notifications:open-settings'
+  /** renderer -> main (invoke): current lock state. */
+  GetLockState: 'lock:get',
+  /** main -> renderer (push): lock state changed. */
+  LockStateChanged: 'lock:changed',
+  /** renderer -> main (send): ask main to show Touch ID; the renderer cannot unlock itself. */
+  RequestUnlock: 'lock:request-unlock',
+  /** main -> renderer (push): the Mac was just unlocked at the macOS lock screen. */
+  MacUnlocked: 'system:mac-unlocked'
 } as const
 
 export type IpcChannel = (typeof IpcChannel)[keyof typeof IpcChannel]
@@ -72,5 +79,10 @@ export interface MacIslandBridge {
   /** Returns an unsubscribe function. */
   onNotifications(listener: (state: NotificationState) => void): () => void
   openBadgeApp(path: string): void
-  openAccessibilitySettings(): void
+  getLockState(): Promise<LockState>
+  /** Returns an unsubscribe function. */
+  onLockState(listener: (state: LockState) => void): () => void
+  requestUnlock(): void
+  /** Fires after the Mac is unlocked. Returns an unsubscribe function. */
+  onMacUnlocked(listener: () => void): () => void
 }

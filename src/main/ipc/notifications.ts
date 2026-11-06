@@ -1,21 +1,21 @@
-import { ipcMain, shell, type WebContents } from 'electron'
+import { ipcMain, shell } from 'electron'
 import { IpcChannel } from '@shared/ipc'
+import { visibleNotifications } from '../services/app-lock'
 import type { NativeHelper } from '../services/native-helper'
-import { IpcValidationError, assertTrustedSender } from './validate'
+import { IpcValidationError, assertTrustedSender, type TrustedSender } from './validate'
 
-const ACCESSIBILITY_SETTINGS = 'x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility'
-
-export function registerNotificationIpc(helper: NativeHelper, owner: WebContents): () => void {
+export function registerNotificationIpc(helper: NativeHelper, isTrusted: TrustedSender, isLocked: () => boolean): () => void {
   ipcMain.handle(IpcChannel.GetNotifications, (event) => {
-    assertTrustedSender(event, owner)
-    return helper.state()
+    assertTrustedSender(event, isTrusted)
+    return visibleNotifications(helper.notifications(), isLocked())
   })
 
   ipcMain.on(IpcChannel.OpenBadgeApp, (event, path: unknown) => {
     try {
-      assertTrustedSender(event, owner)
+      assertTrustedSender(event, isTrusted)
+      if (isLocked()) throw new IpcValidationError('MacIsland is locked')
       // Only apps the Dock is currently showing a badge for can be opened.
-      const badge = helper.state().badges.find((b) => b.path !== '' && b.path === path)
+      const badge = helper.notifications().badges.find((b) => b.path !== '' && b.path === path)
       if (!badge) throw new IpcValidationError('Not a badged app')
       void shell.openPath(badge.path)
     } catch (error) {
@@ -23,18 +23,8 @@ export function registerNotificationIpc(helper: NativeHelper, owner: WebContents
     }
   })
 
-  ipcMain.on(IpcChannel.OpenAccessibilitySettings, (event) => {
-    try {
-      assertTrustedSender(event, owner)
-      void shell.openExternal(ACCESSIBILITY_SETTINGS)
-    } catch (error) {
-      console.warn(`[ipc] ${IpcChannel.OpenAccessibilitySettings}:`, (error as Error).message)
-    }
-  })
-
   return () => {
     ipcMain.removeHandler(IpcChannel.GetNotifications)
     ipcMain.removeAllListeners(IpcChannel.OpenBadgeApp)
-    ipcMain.removeAllListeners(IpcChannel.OpenAccessibilitySettings)
   }
 }

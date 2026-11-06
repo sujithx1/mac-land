@@ -5,9 +5,55 @@ TypeScript, Vite, Tailwind CSS v4 and Framer Motion.
 
 **Status:** Phase 2 UI with real data only:
 
-- Battery, CPU and memory from macOS (`pmset`, `vm_stat`, CPU times).
+- Battery level and charging state from macOS (`pmset`), beside the notch.
 - Music and downloads from Brave/Chrome via the MacIsland Connector extension.
 - Unread counts and app icons from Dock badges, via the native MacIsland Helper.
+- Works on every display: grows out of the notch on a MacBook, floats as a pill
+  on external monitors, and can show on one, several or all of your screens.
+- App-level lock with Touch ID (system password as fallback).
+
+## Displays
+
+Menu bar icon > **Show Island On** lists every connected screen by name.
+Tick one or more; each ticked screen gets its own island, all showing the same
+music, notifications and lock. Islands never move between screens.
+
+- **MacBook Display** is the default; with the lid closed, the main display.
+- **All Displays** puts an island on every screen, including ones you plug in
+  later.
+- A ticked monitor is remembered by name, so it gets its island back when you
+  reconnect it. While none of your ticked screens is connected, the island
+  goes back to the default.
+
+The exact notch size of each screen comes from macOS via the helper.
+
+## Lock (Touch ID)
+
+Menu bar icon > **Lock MacIsland** hides music, downloads and notifications
+until you click the island and authenticate with Touch ID or your Mac password.
+**Lock When Mac Locks** does it automatically whenever your screen locks.
+
+While unlocking, the island opens into a Face ID style card, as on iPhone:
+the face glyph, a spinning scan, then a green face with a green check (or a red face and a shake
+on failure). This is only the look. Macs have no Face ID hardware; the actual
+check is always Touch ID or your password.
+
+When you unlock the Mac itself (Touch ID or password at the macOS lock
+screen), the island plays the same face and check mark animation. It only
+reacts after macOS has unlocked; it never touches the lock screen. Turn it
+off with **Face ID Animation on Unlock** in the menu bar menu.
+
+With **Lock When Mac Locks** on, unlocking the Mac also opens MacIsland,
+because macOS has just checked Touch ID or your password. A lock you set
+yourself with **Lock MacIsland** stays locked until MacIsland's own Touch ID,
+and so does a lock restored after a restart.
+
+- The lock lives in the main process; while locked the island window never
+  receives the hidden data, and play/pause or open-app requests are refused.
+- MacIsland never sees or stores your password: macOS shows and checks the
+  Touch ID / password sheet itself (LocalAuthentication).
+- The lock survives restarts. It protects MacIsland only and never touches the
+  macOS login screen.
 
 ## Notifications (Dock badge counts)
 
@@ -18,7 +64,8 @@ The first time you run MacIsland, macOS asks to allow **MacIsland Helper** in
 System Settings > Privacy & Security > Accessibility. Turn it on. The helper
 only reads badge counts, app names and icons; it cannot read message contents.
 Rebuilding the helper (only when `native/swift-helper/Sources/main.swift`
-changes) means allowing it again.
+changes) means allowing it again. While access is missing, the menu bar icon's
+menu has **Allow Notification Counts…**, which opens that settings page.
 
 ## Browser extension (music and downloads)
 
@@ -38,10 +85,26 @@ npm run dev        # run with hot reload
 npm run typecheck  # strict TypeScript for main/preload, renderer and extension
 npm run build      # typecheck + production bundle into out/
 npm run preview    # run the production bundle
+npm run dist       # build MacIsland.app and dist/MacIsland-<version>-arm64.dmg
 ```
 
 MacIsland has no Dock icon. Quit it from the pill icon in the menu bar
 (**Quit MacIsland**) or with Ctrl+C in the terminal running `npm run dev`.
+
+## Install on your Mac
+
+1. `npm run dist`, then open `dist/MacIsland-<version>-arm64.dmg` and drag
+   **MacIsland** into Applications (or copy `dist/mac-arm64/MacIsland.app`).
+2. Quit any copy started with `npm run dev`; only one MacIsland runs at a time.
+3. Open MacIsland from Applications, then allow **MacIsland Helper** in
+   System Settings > Privacy & Security > Accessibility. The installed helper
+   is a different app from the development one, so it needs its own approval.
+4. Menu bar icon > **Open at Login** starts it automatically (installed app only).
+
+The app is signed ad-hoc, which is enough on the Mac that built it. A copy
+downloaded on another Mac shows "cannot verify the developer" until it is
+allowed once under System Settings > Privacy & Security > **Open Anyway**;
+a paid Apple Developer ID with notarization removes that step.
 
 ## Layout
 
@@ -57,13 +120,16 @@ src/
     windows/geometry.ts     display -> island geometry (notch vs floating)
     services/system-monitor.ts  battery, CPU and memory sampling
     services/browser-bridge.ts  local WebSocket server for the extension
-    services/native-helper.ts   launches the Swift helper, receives badge counts
+    services/native-helper.ts   launches the Swift helper: badges, screens, Touch ID
+    services/app-lock.ts        lock state machine and data gating
+    services/settings.ts        display and lock preferences (settings.json)
+    windows/islands.ts          one island window per chosen display
   preload/index.ts          contextBridge API exposed as window.macIsland
   renderer/src/
     components/
       Island.tsx            shell: shape, spring, which content is shown
       ExpandedPanel.tsx     expanded layout and menu-bar header
-      MusicPlayer.tsx, SystemStatus.tsx, Notifications.tsx, TransferProgress.tsx
+      MusicPlayer.tsx, Notifications.tsx, TransferProgress.tsx
       island/               compact ears, equalizer, notch shoulders
       ui/                   artwork, progress bar/ring, icon button
     hooks/                  geometry sync, activity snapshot, hover/expand/collapse
@@ -74,7 +140,7 @@ src/
       presentation.ts       what the compact island and header show
     types/activity.ts       the snapshot every component reads
 extension/                  Brave/Chrome extension: media + downloads
-native/swift-helper/        MacIsland Helper: Dock badge reader (Swift); Touch ID later
+native/swift-helper/        MacIsland Helper (Swift): Dock badges, screen notch sizes, Touch ID
 ```
 
 ## Testing on macOS
@@ -87,4 +153,4 @@ native/swift-helper/        MacIsland Helper: Dock badge reader (Swift); Touch I
 4. Switch to a full-screen app and to another Space: the island stays visible.
 5. Change the display resolution in System Settings > Displays: the island re-centres.
 6. Click the island to expand it; move the pointer away to collapse.
-   Battery, CPU and memory match Activity Monitor and update every 2 seconds.
+   The battery percentage beside the notch matches the one in the menu bar.

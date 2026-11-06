@@ -18,7 +18,8 @@
     "typecheck:web": "tsc --noEmit -p tsconfig.web.json",
     "typecheck": "npm run typecheck:node && npm run typecheck:web && npm run typecheck:extension",
     "typecheck:extension": "tsc --noEmit -p tsconfig.extension.json",
-    "build:native": "sh native/swift-helper/build.sh"
+    "build:native": "sh native/swift-helper/build.sh",
+    "dist": "npm run build && electron-builder --mac"
   },
   "dependencies": {
     "framer-motion": "^14.9.0",
@@ -36,6 +37,7 @@
     "@types/ws": "^8.18.2",
     "@vitejs/plugin-react": "^6.2.1",
     "electron": "^45.2.1",
+    "electron-builder": "^26.18.0",
     "electron-vite": "^6.0.0",
     "tailwindcss": "^4.3.4",
     "typescript": "^7.0.2",

@@ -69,8 +69,9 @@ export function compactPresentation(snapshot: IslandSnapshot): CompactPresentati
 export function currentActivityLabel(snapshot: IslandSnapshot): string {
   const active = snapshot.transfers.filter((t) => !t.done)
   if (active.length > 0) {
-    const verb = active.every((t) => t.kind === 'download') ? 'Downloading' : 'Transferring'
-    return `${verb} ${active.length} ${active.length === 1 ? 'item' : 'items'}`
+    // Short enough for the strip beside the notch.
+    const noun = active.every((t) => t.kind === 'download') ? 'download' : 'transfer'
+    return `${active.length} ${noun}${active.length === 1 ? '' : 's'}`
   }
   if (snapshot.nowPlaying?.isPlaying) return `Playing in ${snapshot.nowPlaying.sourceApp}`
   const unread = unreadTotal(snapshot.badges)

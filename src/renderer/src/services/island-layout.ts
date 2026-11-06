@@ -1,6 +1,8 @@
 import type { IslandGeometry } from '@shared/ipc'
 
 export type IslandMode = 'idle' | 'compact' | 'expanded'
+/** Every shape the island can take: the interaction modes plus the Face ID card shown while unlocking. */
+export type IslandShape = IslandMode | 'face-id'
 
 /** Resolved size and placement of the island for one state, in points. */
 export interface IslandFrame {
@@ -15,10 +17,69 @@ export interface IslandFrame {
 export const SHOULDER_RADIUS = 8
 
 /** Size of the expanded panel below its header row. */
-export const EXPANDED_WIDTH = 580
-/** Body height with and without the notifications/transfers row. */
-const EXPANDED_BODY_HEIGHT = { withActivityRow: 294, withoutActivityRow: 142 } as const
+export const EXPANDED_WIDTH = 460
+/** Music row plus padding: a track with controls, or the shorter "Not Playing" row. */
+const EXPANDED_MUSIC_HEIGHT = { playing: 142, idle: 89 } as const
 const EXPANDED_RADIUS = 30
+
+/** What the notifications/transfers row below the music has to show. */
+export interface ActivityRowContent {
+  badges: number
+  transfers: number
+}
+
+/** Rows listed per section; the rest are summarised. */
+export const ACTIVITY_VISIBLE_ROWS = 2
+
+/**
+ * Fixed heights of the activity row's parts. The components use matching
+ * fixed sizes, so the island can open straight to the right height.
+ */
+export const ACTIVITY_ROW = {
+  divider: 25,
+  label: 24,
+  item: 40,
+  badgeGap: 2,
+  more: 16,
+  transferGap: 8
+} as const
+
+export function showsNotifications(content: ActivityRowContent): boolean {
+  return content.badges > 0
+}
+
+/** Everything the expanded panel shows below its header. */
+export interface PanelContent extends ActivityRowContent {
+  hasTrack: boolean
+}
+
+/** Height of the expanded panel below its header, from what it has to show. */
+export function expandedBodyHeight(content: PanelContent): number {
+  return (content.hasTrack ? EXPANDED_MUSIC_HEIGHT.playing : EXPANDED_MUSIC_HEIGHT.idle) + activityRowHeight(content)
+}
+
+/** Height the activity row adds to the expanded panel; 0 when there is nothing to show. */
+export function activityRowHeight(content: ActivityRowContent): number {
+  const notifications = showsNotifications(content)
+  const transfers = Math.min(content.transfers, ACTIVITY_VISIBLE_ROWS)
+  if (!notifications && transfers === 0) return 0
+
+  let notificationsHeight = 0
+  if (notifications) {
+    const shown = Math.min(content.badges, ACTIVITY_VISIBLE_ROWS)
+    const more = content.badges > shown ? ACTIVITY_ROW.badgeGap + ACTIVITY_ROW.more : 0
+    notificationsHeight = shown * ACTIVITY_ROW.item + (shown - 1) * ACTIVITY_ROW.badgeGap + more
+  }
+  const transfersHeight = transfers > 0 ? transfers * ACTIVITY_ROW.item + (transfers - 1) * ACTIVITY_ROW.transferGap : 0
+
+  return ACTIVITY_ROW.divider + ACTIVITY_ROW.label + Math.max(notificationsHeight, transfersHeight)
+}
+
+/** The near-square card shown while unlocking, like Face ID on iPhone. */
+const FACE_ID_WIDTH = 210
+const FACE_ID_EAR = 14
+const FACE_ID_BODY_HEIGHT = 150
+const FACE_ID_RADIUS = 42
 
 /** Header height used when there is no menu bar/notch strip to align with. */
 const FLOATING_HEADER_HEIGHT = 32
@@ -57,17 +118,36 @@ export function expandedHeaderHeight(geometry: IslandGeometry): number {
  */
 export function islandFrame(
   geometry: IslandGeometry,
-  mode: IslandMode,
+  mode: IslandShape,
   hovering: boolean,
-  activityRow = true
+  /** Expanded panel height below the header, from expandedBodyHeight(). */
+  bodyHeight: number = EXPANDED_MUSIC_HEIGHT.playing
 ): IslandFrame {
   const isNotch = geometry.variant === 'notch'
 
+  if (mode === 'face-id') {
+    return isNotch
+      ? {
+          // Wide enough to wrap the camera housing; the glyph sits below it.
+          width: Math.max(FACE_ID_WIDTH, geometry.notchWidth + FACE_ID_EAR * 2),
+          height: expandedHeaderHeight(geometry) + FACE_ID_BODY_HEIGHT,
+          top: 0,
+          topRadius: 0,
+          bottomRadius: FACE_ID_RADIUS
+        }
+      : {
+          width: FACE_ID_WIDTH,
+          height: FACE_ID_WIDTH,
+          top: FLOATING_TOP,
+          topRadius: FACE_ID_RADIUS,
+          bottomRadius: FACE_ID_RADIUS
+        }
+  }
+
   if (mode === 'expanded') {
-    const body = activityRow ? EXPANDED_BODY_HEIGHT.withActivityRow : EXPANDED_BODY_HEIGHT.withoutActivityRow
     return {
       width: EXPANDED_WIDTH,
-      height: expandedHeaderHeight(geometry) + body,
+      height: expandedHeaderHeight(geometry) + bodyHeight,
       top: isNotch ? 0 : FLOATING_TOP,
       topRadius: isNotch ? 0 : EXPANDED_RADIUS,
       bottomRadius: EXPANDED_RADIUS
