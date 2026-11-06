@@ -49,7 +49,8 @@ export function FaceIdGlyph({ stage, size, color = '#fff' }: FaceIdGlyphProps): 
       style={{ overflow: 'visible', transition: 'stroke 200ms ease' }}
     >
       <motion.g
-        initial={false}
+        // A spin that is already running when the glyph appears must start from 0, not be skipped.
+        initial={scanning && !reduceMotion ? { rotate: 0, scale: 0.82 } : false}
         animate={{
           rotate: scanning && !reduceMotion ? [0, 360] : 0,
           scale: scanning ? 0.82 : 1

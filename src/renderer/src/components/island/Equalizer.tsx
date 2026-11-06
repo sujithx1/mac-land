@@ -24,7 +24,9 @@ export function Equalizer({ playing, color }: EqualizerProps): React.JSX.Element
           key={index}
           className="block h-full w-[3px] rounded-full"
           style={{ backgroundColor: color, originY: 0.5 }}
-          initial={false}
+          // `initial={false}` would jump a looping animation to its last keyframe and never start it,
+          // so a bar that appears while music is already playing starts from its first height.
+          initial={animate ? { scaleY: bar.heights[0] } : false}
           animate={animate ? { scaleY: [...bar.heights] } : { scaleY: playing ? 0.6 : 0.25 }}
           transition={
             animate
