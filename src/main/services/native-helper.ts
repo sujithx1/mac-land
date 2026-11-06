@@ -138,10 +138,11 @@ export function startNativeHelper(events: HelperEvents): NativeHelper {
       if (active !== socket) return
       active = null
       for (const id of [...pendingAuth.keys()]) settleAuth(id, { success: false, error: 'unavailable' })
+      // Quitting: the tray and window this would update are already gone.
+      if (stopped) return
       setNotifications({ permission: 'unknown', badges: [] })
       biometry = 'unknown'
       events.onBiometry(biometry)
-      if (stopped) return
 
       quickRelaunches = Date.now() - launchedAt < 10_000 ? quickRelaunches + 1 : 0
       if (quickRelaunches >= MAX_QUICK_RELAUNCHES) {

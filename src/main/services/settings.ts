@@ -2,18 +2,25 @@ import { readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { app } from 'electron'
 
-export const DISPLAY_PREFERENCES = ['builtin', 'main', 'follow-mouse'] as const
-export type DisplayPreference = (typeof DISPLAY_PREFERENCES)[number]
-
-export const DISPLAY_PREFERENCE_LABELS: Record<DisplayPreference, string> = {
-  builtin: 'MacBook Display',
-  main: 'Main Display',
-  'follow-mouse': 'Display with Mouse Pointer'
+/** A display picked in the menu, remembered by id and by name: ids can change when a monitor is reconnected. */
+export interface DisplayChoice {
+  id: number
+  name: string
 }
 
+export interface DisplaySelection {
+  /** An island on every connected display, including ones plugged in later. */
+  all: boolean
+  /** Used when `all` is off. Empty means the MacBook's own display. */
+  chosen: DisplayChoice[]
+}
+
+/** More than anyone connects; caps what a hand-edited settings file can ask for. */
+const MAX_CHOSEN_DISPLAYS = 16
+
 export interface Settings {
-  /** Which screen the island lives on. */
-  display: DisplayPreference
+  /** Which screens show an island. */
+  displays: DisplaySelection
   /** Kept across restarts so quitting MacIsland is not a way around the lock. */
   locked: boolean
   /** Lock MacIsland whenever the Mac's screen locks. */
@@ -22,20 +29,45 @@ export interface Settings {
   animateMacUnlock: boolean
 }
 
-const DEFAULTS: Settings = { display: 'builtin', locked: false, lockWhenMacLocks: false, animateMacUnlock: true }
+const DEFAULTS: Settings = {
+  displays: { all: false, chosen: [] },
+  locked: false,
+  lockWhenMacLocks: false,
+  animateMacUnlock: true
+}
 
 const settingsPath = (): string => join(app.getPath('userData'), 'settings.json')
+
+function parseDisplays(value: unknown): DisplaySelection {
+  if (typeof value !== 'object' || value === null) return { ...DEFAULTS.displays }
+  const stored = value as Record<string, unknown>
+  const chosen = Array.isArray(stored['chosen']) ? stored['chosen'] : []
+  return {
+    all: stored['all'] === true,
+    chosen: chosen
+      .filter((entry): entry is DisplayChoice => {
+        const choice = entry as Partial<DisplayChoice> | null
+        return (
+          typeof choice?.id === 'number' &&
+          Number.isInteger(choice.id) &&
+          typeof choice.name === 'string' &&
+          choice.name.length <= 200
+        )
+      })
+      .slice(0, MAX_CHOSEN_DISPLAYS)
+      .map(({ id, name }) => ({ id, name }))
+  }
+}
 
 /** Reads settings, keeping only known, valid values; anything else falls back to defaults. */
 export function loadSettings(): Settings {
   try {
     const raw: unknown = JSON.parse(readFileSync(settingsPath(), 'utf8'))
     const stored = typeof raw === 'object' && raw !== null ? (raw as Record<string, unknown>) : {}
-    const display = DISPLAY_PREFERENCES.find((value) => value === stored['display']) ?? DEFAULTS.display
     const flag = (key: 'locked' | 'lockWhenMacLocks' | 'animateMacUnlock'): boolean =>
       typeof stored[key] === 'boolean' ? stored[key] : DEFAULTS[key]
     return {
-      display,
+      displays: parseDisplays(stored['displays']),
       locked: flag('locked'),
       lockWhenMacLocks: flag('lockWhenMacLocks'),
       animateMacUnlock: flag('animateMacUnlock')

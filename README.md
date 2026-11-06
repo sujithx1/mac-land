@@ -9,18 +9,21 @@ TypeScript, Vite, Tailwind CSS v4 and Framer Motion.
 - Music and downloads from Brave/Chrome via the MacIsland Connector extension.
 - Unread counts and app icons from Dock badges, via the native MacIsland Helper.
 - Works on every display: grows out of the notch on a MacBook, floats as a pill
-  on external monitors, and can follow your pointer between screens.
+  on external monitors, and can show on one, several or all of your screens.
 - App-level lock with Touch ID (system password as fallback).
 
 ## Displays
 
-Menu bar icon > **Show Island On**:
+Menu bar icon > **Show Island On** lists every connected screen by name.
+Tick one or more; each ticked screen gets its own island, all showing the same
+music, notifications and lock. Islands never move between screens.
 
-- **MacBook Display** (default): the built-in screen; falls back to the main
-  display when the lid is closed.
-- **Main Display**: whichever screen has the menu bar in System Settings.
-- **Display with Mouse Pointer**: the island follows you after the pointer rests
-  on another screen for a moment.
+- **MacBook Display** is the default; with the lid closed, the main display.
+- **All Displays** puts an island on every screen, including ones you plug in
+  later.
+- A ticked monitor is remembered by name, so it gets its island back when you
+  reconnect it. While none of your ticked screens is connected, the island
+  goes back to the default.
 
 The exact notch size of each screen comes from macOS via the helper.
 
@@ -82,10 +85,26 @@ npm run dev        # run with hot reload
 npm run typecheck  # strict TypeScript for main/preload, renderer and extension
 npm run build      # typecheck + production bundle into out/
 npm run preview    # run the production bundle
+npm run dist       # build MacIsland.app and dist/MacIsland-<version>-arm64.dmg
 ```
 
 MacIsland has no Dock icon. Quit it from the pill icon in the menu bar
 (**Quit MacIsland**) or with Ctrl+C in the terminal running `npm run dev`.
+
+## Install on your Mac
+
+1. `npm run dist`, then open `dist/MacIsland-<version>-arm64.dmg` and drag
+   **MacIsland** into Applications (or copy `dist/mac-arm64/MacIsland.app`).
+2. Quit any copy started with `npm run dev`; only one MacIsland runs at a time.
+3. Open MacIsland from Applications, then allow **MacIsland Helper** in
+   System Settings > Privacy & Security > Accessibility. The installed helper
+   is a different app from the development one, so it needs its own approval.
+4. Menu bar icon > **Open at Login** starts it automatically (installed app only).
+
+The app is signed ad-hoc, which is enough on the Mac that built it. A copy
+downloaded on another Mac shows "cannot verify the developer" until it is
+allowed once under System Settings > Privacy & Security > **Open Anyway**;
+a paid Apple Developer ID with notarization removes that step.
 
 ## Layout
 
@@ -104,7 +123,7 @@ src/
     services/native-helper.ts   launches the Swift helper: badges, screens, Touch ID
     services/app-lock.ts        lock state machine and data gating
     services/settings.ts        display and lock preferences (settings.json)
-    windows/placement.ts        which display the island is on, follow-pointer
+    windows/islands.ts          one island window per chosen display
   preload/index.ts          contextBridge API exposed as window.macIsland
   renderer/src/
     components/

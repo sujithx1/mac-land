@@ -1,7 +1,6 @@
 import { Menu, Tray, app, nativeImage, shell, type NativeImage } from 'electron'
 import type { LockState } from '@shared/lock'
 import type { BadgePermission } from '@shared/notifications'
-import { DISPLAY_PREFERENCES, DISPLAY_PREFERENCE_LABELS, type DisplayPreference } from './services/settings'
 
 const ACCESSIBILITY_SETTINGS = 'x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility'
 
@@ -45,9 +44,20 @@ function createPillTemplateIcon(): NativeImage {
   return image
 }
 
+/** A connected display as the menu lists it. */
+export interface DisplayMenuEntry {
+  id: number
+  name: string
+  /** Has an island right now. */
+  shown: boolean
+}
+
 export interface TrayController {
-  displayPreference(): DisplayPreference
-  setDisplayPreference(preference: DisplayPreference): void
+  displays(): DisplayMenuEntry[]
+  allDisplays(): boolean
+  /** Ticks or unticks one display; the last one shown cannot be unticked. */
+  toggleDisplay(id: number): void
+  setAllDisplays(all: boolean): void
   lockState(): LockState
   lock(): void
   unlock(): void
@@ -57,6 +67,21 @@ export interface TrayController {
   badgePermission(): BadgePermission
   animateMacUnlock(): boolean
   setAnimateMacUnlock(enabled: boolean): void
+}
+
+/** Only the installed app can start at login; in development it would register Electron itself. */
+function openAtLoginItem(): Electron.MenuItemConstructorOptions[] {
+  if (!app.isPackaged) return []
+  return [
+    {
+      label: 'Open at Login',
+      type: 'checkbox',
+      // macOS keeps this setting, so it is read back rather than stored in settings.json.
+      checked: app.getLoginItemSettings().openAtLogin,
+      click: (item) => app.setLoginItemSettings({ openAtLogin: item.checked })
+    },
+    { type: 'separator' }
+  ]
 }
 
 export interface IslandTray {
@@ -82,12 +107,25 @@ export function createTray(controller: TrayController): IslandTray {
         { type: 'separator' },
         {
           label: 'Show Island On',
-          submenu: DISPLAY_PREFERENCES.map((preference) => ({
-            label: DISPLAY_PREFERENCE_LABELS[preference],
-            type: 'radio' as const,
-            checked: preference === controller.displayPreference(),
-            click: () => controller.setDisplayPreference(preference)
-          }))
+          submenu: [
+            {
+              label: 'All Displays',
+              type: 'checkbox',
+              checked: controller.allDisplays(),
+              click: (item) => controller.setAllDisplays(item.checked)
+            },
+            { type: 'separator' },
+            ...controller.displays().map(
+              (display): Electron.MenuItemConstructorOptions => ({
+                label: display.name,
+                type: 'checkbox',
+                checked: display.shown,
+                // With "All Displays" on, every display is shown; pick them one by one after turning it off.
+                enabled: !controller.allDisplays(),
+                click: () => controller.toggleDisplay(display.id)
+              })
+            )
+          ]
         },
         { type: 'separator' },
         locked
@@ -106,6 +144,7 @@ export function createTray(controller: TrayController): IslandTray {
           click: (item) => controller.setAnimateMacUnlock(item.checked)
         },
         { type: 'separator' },
+        ...openAtLoginItem(),
         // Only while access is missing: without it there are no unread counts.
         ...(controller.badgePermission() === 'denied'
           ? [
@@ -119,5 +158,11 @@ export function createTray(controller: TrayController): IslandTray {
   }
 
   build()
-  return { refresh: build, destroy: () => tray.destroy() }
+  // Late events (a helper disconnecting while quitting) must not touch a destroyed tray.
+  return {
+    refresh: () => {
+      if (!tray.isDestroyed()) build()
+    },
+    destroy: () => tray.destroy()
+  }
 }

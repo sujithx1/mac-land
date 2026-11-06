@@ -1,17 +1,17 @@
-import { ipcMain, type WebContents } from 'electron'
+import { ipcMain } from 'electron'
 import { IpcChannel } from '@shared/ipc'
 import type { AppLock } from '../services/app-lock'
-import { assertTrustedSender } from './validate'
+import { assertTrustedSender, type TrustedSender } from './validate'
 
-export function registerLockIpc(appLock: AppLock, owner: WebContents): () => void {
+export function registerLockIpc(appLock: AppLock, isTrusted: TrustedSender): () => void {
   ipcMain.handle(IpcChannel.GetLockState, (event) => {
-    assertTrustedSender(event, owner)
+    assertTrustedSender(event, isTrusted)
     return appLock.state()
   })
 
   ipcMain.on(IpcChannel.RequestUnlock, (event) => {
     try {
-      assertTrustedSender(event, owner)
+      assertTrustedSender(event, isTrusted)
       void appLock.unlock()
     } catch (error) {
       console.warn(`[ipc] ${IpcChannel.RequestUnlock}:`, (error as Error).message)

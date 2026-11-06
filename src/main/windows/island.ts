@@ -9,8 +9,6 @@ export interface IslandWindow {
   /** Moves the island to a display and tells the renderer its new geometry. */
   place(display: Display, geometry: IslandGeometry): void
   setInteractive(interactive: boolean): void
-  /** True while the pointer is over the island. */
-  isInteractive(): boolean
   dispose(): void
 }
 
@@ -83,7 +81,6 @@ export function createIslandWindow(display: Display, initialGeometry: IslandGeom
       interactive = next
       window.setIgnoreMouseEvents(!next, { forward: true })
     },
-    isInteractive: () => interactive,
     dispose() {
       if (!window.isDestroyed()) window.destroy()
     }

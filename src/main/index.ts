@@ -1,4 +1,4 @@
-import { app, powerMonitor } from 'electron'
+import { app, powerMonitor, screen } from 'electron'
 import { IpcChannel } from '@shared/ipc'
 import { registerBrowserIpc } from './ipc/browser'
 import { registerIslandIpc } from './ipc/island'
@@ -12,9 +12,8 @@ import { startNativeHelper } from './services/native-helper'
 import { loadSettings, saveSettings } from './services/settings'
 import { startSystemMonitor } from './services/system-monitor'
 import { createTray } from './tray'
-import { computeIslandGeometry, type ScreenNotch } from './windows/geometry'
-import { createIslandWindow } from './windows/island'
-import { resolveDisplay, startIslandPlacement } from './windows/placement'
+import type { ScreenNotch } from './windows/geometry'
+import { displayName, resolveDisplays, startIslands, toggleDisplay } from './windows/islands'
 
 if (process.platform !== 'darwin') {
   console.error('MacIsland only runs on macOS.')
@@ -42,30 +41,24 @@ function start(): void {
   const settings = loadSettings()
   const persist = (): void => saveSettings(settings)
 
-  // Island window, placed on the preferred display.
-  const initialDisplay = resolveDisplay(settings.display)
-  const island = createIslandWindow(initialDisplay, computeIslandGeometry(initialDisplay))
-  disposers.push(() => island.dispose())
-  const contents = island.window.webContents
-  const send = (channel: IpcChannel, payload: unknown): void => {
-    if (!island.window.isDestroyed()) contents.send(channel, payload)
-  }
-  disposers.push(registerIslandIpc(island))
-
+  // One island per chosen display; all of them show the same live data.
   let notches: ReadonlyMap<number, ScreenNotch> = new Map()
-  const placement = startIslandPlacement(island, settings.display, () => notches)
-  disposers.push(() => placement.dispose())
+  const islands = startIslands(settings.displays, () => notches, () => tray.refresh())
+  disposers.push(() => islands.dispose())
+  const send = (channel: IpcChannel, payload: unknown): void => islands.broadcast(channel, payload)
+  const isTrusted = (contents: Electron.WebContents): boolean => islands.fromSender(contents) !== undefined
+  disposers.push(registerIslandIpc(islands, isTrusted))
 
   // System readings.
   const monitor = startSystemMonitor((stats) => send(IpcChannel.SystemStatsChanged, stats))
-  disposers.push(() => monitor.stop(), registerSystemIpc(monitor, contents))
+  disposers.push(() => monitor.stop(), registerSystemIpc(monitor, isTrusted))
 
   // Lock gate: while locked, browser and notification data never reach the renderer.
   let locked = settings.locked
   const isLocked = (): boolean => locked
 
   const browserBridge = startBrowserBridge(() => pushBrowser())
-  disposers.push(() => browserBridge.stop(), registerBrowserIpc(browserBridge, contents, isLocked))
+  disposers.push(() => browserBridge.stop(), registerBrowserIpc(browserBridge, isTrusted, isLocked))
   const pushBrowser = (): void =>
     send(IpcChannel.BrowserStateChanged, visibleBrowserState(browserBridge.state(), isLocked()))
 
@@ -76,11 +69,11 @@ function start(): void {
     },
     onScreens: (next) => {
       notches = next
-      placement.refresh()
+      islands.refresh()
     },
     onBiometry: (biometry) => appLock.setBiometry(biometry)
   })
-  disposers.push(() => helper.stop(), registerNotificationIpc(helper, contents, isLocked))
+  disposers.push(() => helper.stop(), registerNotificationIpc(helper, isTrusted, isLocked))
   const pushNotifications = (): void =>
     send(IpcChannel.NotificationsChanged, visibleNotifications(helper.notifications(), isLocked()))
 
@@ -99,7 +92,7 @@ function start(): void {
       pushNotifications()
     }
   })
-  disposers.push(() => appLock.dispose(), registerLockIpc(appLock, contents))
+  disposers.push(() => appLock.dispose(), registerLockIpc(appLock, isTrusted))
 
   const onMacLocked = (): void => {
     if (settings.lockWhenMacLocks) appLock.lock('mac')
@@ -124,12 +117,28 @@ function start(): void {
   disposers.push(() => powerMonitor.off('unlock-screen', onMacUnlocked))
 
   const tray = createTray({
-    displayPreference: () => placement.preference(),
-    setDisplayPreference(preference) {
-      settings.display = preference
+    displays: () => {
+      const shown = new Set(resolveDisplays(islands.selection()).map((display) => display.id))
+      return screen.getAllDisplays().map((display) => ({
+        id: display.id,
+        name: displayName(display),
+        shown: shown.has(display.id)
+      }))
+    },
+    allDisplays: () => islands.selection().all,
+    toggleDisplay(id) {
+      const display = screen.getAllDisplays().find((d) => d.id === id)
+      const next = display && toggleDisplay(islands.selection(), display)
+      if (!next) return
+      settings.displays = next
       persist()
-      placement.setPreference(preference)
-      tray.refresh()
+      islands.setSelection(next)
+    },
+    setAllDisplays(all) {
+      // Turning "All Displays" off keeps the MacBook display, the default.
+      settings.displays = { all, chosen: [] }
+      persist()
+      islands.setSelection(settings.displays)
     },
     lockState: () => appLock.state(),
     lock: () => appLock.lock(),
@@ -148,7 +157,9 @@ function start(): void {
   })
   disposers.push(() => tray.destroy())
 
-  if (!app.isPackaged) console.info('[island] display', initialDisplay.label, island.geometry())
+  if (!app.isPackaged) {
+    for (const island of islands.windows()) console.info('[island] window', island.geometry())
+  }
 }
 
 app

@@ -1,95 +1,129 @@
-import { screen, type Display } from 'electron'
-import type { DisplayPreference } from '../services/settings'
+import { screen, type Display, type WebContents } from 'electron'
+import type { IpcChannel } from '@shared/ipc'
+import type { DisplayChoice, DisplaySelection } from '../services/settings'
 import { computeIslandGeometry, type ScreenNotch } from './geometry'
-import type { IslandWindow } from './island'
+import { createIslandWindow, type IslandWindow } from './island'
 
-const FOLLOW_POLL_MS = 250
-/**
- * The pointer must rest on another display this long before the island
- * follows, so skimming across a screen edge does not make it flicker and an
- * open panel has time to collapse first.
- */
-const FOLLOW_SETTLE_MS = 600
-
-export function resolveDisplay(preference: DisplayPreference): Display {
-  switch (preference) {
-    case 'builtin':
-      // Lid closed (clamshell) or a desktop Mac: fall back to the main display.
-      return screen.getAllDisplays().find((display) => display.internal) ?? screen.getPrimaryDisplay()
-    case 'main':
-      return screen.getPrimaryDisplay()
-    case 'follow-mouse':
-      return screen.getDisplayNearestPoint(screen.getCursorScreenPoint())
-  }
+/** The MacBook's own screen; the main display with the lid closed or on a desktop Mac. */
+function defaultDisplay(connected: readonly Display[]): Display {
+  return connected.find((display) => display.internal) ?? screen.getPrimaryDisplay()
 }
 
-export interface IslandPlacement {
-  preference(): DisplayPreference
-  setPreference(preference: DisplayPreference): void
-  /** Re-evaluate after the helper reports new screen data. */
+/** Matches by id, or by name when that id is gone (the same monitor reconnected under a new id). */
+function isChosen(display: Display, chosen: readonly DisplayChoice[], connected: readonly Display[]): boolean {
+  return chosen.some(
+    (choice) =>
+      choice.id === display.id || (choice.name === display.label && !connected.some((d) => d.id === choice.id))
+  )
+}
+
+/** The displays that get an island right now; never empty. */
+export function resolveDisplays(selection: DisplaySelection): Display[] {
+  const connected = screen.getAllDisplays()
+  if (selection.all) return connected
+  const picked = connected.filter((display) => isChosen(display, selection.chosen, connected))
+  return picked.length > 0 ? picked : [defaultDisplay(connected)]
+}
+
+/** Menu name for a display. */
+export function displayName(display: Display): string {
+  return display.internal ? 'MacBook Display' : display.label || `Display ${display.id}`
+}
+
+/**
+ * The selection after ticking or unticking one display in the menu, or null
+ * when that would leave no island at all.
+ */
+export function toggleDisplay(selection: DisplaySelection, display: Display): DisplaySelection | null {
+  const shown = resolveDisplays(selection)
+  const next = shown.some((d) => d.id === display.id)
+    ? shown.filter((d) => d.id !== display.id)
+    : [...shown, display]
+  if (next.length === 0) return null
+  return { all: false, chosen: next.map((d) => ({ id: d.id, name: d.label })) }
+}
+
+export interface Islands {
+  windows(): readonly IslandWindow[]
+  /** The island whose page sent an IPC message, if it is one of ours. */
+  fromSender(contents: WebContents): IslandWindow | undefined
+  /** Sends to every island; each shows the same live data. */
+  broadcast(channel: IpcChannel, payload: unknown): void
+  selection(): DisplaySelection
+  setSelection(selection: DisplaySelection): void
+  /** Re-place after the helper reports new notch sizes. */
   refresh(): void
   dispose(): void
 }
 
 /**
- * Keeps the island on the right display: reacts to displays being added,
- * removed or rearranged, and follows the pointer when asked to.
+ * One island window per chosen display. Windows never move between
+ * displays: plugging a monitor in or out, or changing the choice, adds or
+ * removes whole windows and re-places the rest.
  */
-export function startIslandPlacement(
-  island: IslandWindow,
-  initial: DisplayPreference,
-  notches: () => ReadonlyMap<number, ScreenNotch>
-): IslandPlacement {
-  let preference = initial
-  let placedKey = ''
-  let placedDisplayId: number | null = null
-  let pending: { displayId: number; since: number } | null = null
+export function startIslands(
+  initial: DisplaySelection,
+  notches: () => ReadonlyMap<number, ScreenNotch>,
+  /** After displays or the choice change; not for the first placement, which runs before the menu exists. */
+  onChanged: () => void
+): Islands {
+  let selection = initial
+  const islands = new Map<number, { island: IslandWindow; placedKey: string }>()
 
-  const place = (display: Display): void => {
-    const geometry = computeIslandGeometry(display, notches().get(display.id))
-    const key = JSON.stringify([display.id, display.bounds, display.workArea, geometry])
-    if (key === placedKey) return
-    placedKey = key
-    placedDisplayId = display.id
-    island.place(display, geometry)
-  }
+  const place = (): void => {
+    const targets = resolveDisplays(selection)
+    const targetIds = new Set(targets.map((display) => display.id))
 
-  const apply = (): void => {
-    pending = null
-    place(resolveDisplay(preference))
-  }
-
-  screen.on('display-added', apply)
-  screen.on('display-removed', apply)
-  screen.on('display-metrics-changed', apply)
-
-  const follow = setInterval(() => {
-    // Never move the island out from under the pointer.
-    if (preference !== 'follow-mouse' || island.isInteractive()) return
-    const target = resolveDisplay('follow-mouse')
-    if (target.id === placedDisplayId) {
-      pending = null
-      return
+    for (const [id, entry] of islands) {
+      if (targetIds.has(id)) continue
+      entry.island.dispose()
+      islands.delete(id)
     }
-    const now = Date.now()
-    if (pending?.displayId !== target.id) pending = { displayId: target.id, since: now }
-    else if (now - pending.since >= FOLLOW_SETTLE_MS) apply()
-  }, FOLLOW_POLL_MS)
 
-  apply()
+    for (const display of targets) {
+      const geometry = computeIslandGeometry(display, notches().get(display.id))
+      const placedKey = JSON.stringify([display.bounds, display.workArea, geometry])
+      const entry = islands.get(display.id)
+      if (!entry) {
+        islands.set(display.id, { island: createIslandWindow(display, geometry), placedKey })
+      } else if (entry.placedKey !== placedKey) {
+        entry.placedKey = placedKey
+        entry.island.place(display, geometry)
+      }
+    }
+  }
+  const sync = (): void => {
+    place()
+    onChanged()
+  }
+
+  screen.on('display-added', sync)
+  screen.on('display-removed', sync)
+  screen.on('display-metrics-changed', sync)
+  place()
+
+  const windows = (): IslandWindow[] => [...islands.values()].map((entry) => entry.island)
 
   return {
-    preference: () => preference,
-    setPreference(next) {
-      preference = next
-      apply()
+    windows,
+    fromSender: (contents) => windows().find((island) => island.window.webContents === contents),
+    broadcast(channel, payload) {
+      for (const island of windows()) {
+        if (!island.window.isDestroyed()) island.window.webContents.send(channel, payload)
+      }
     },
-    refresh: apply,
+    selection: () => selection,
+    setSelection(next) {
+      selection = next
+      sync()
+    },
+    refresh: sync,
     dispose() {
-      clearInterval(follow)
-      screen.off('display-added', apply)
-      screen.off('display-removed', apply)
-      screen.off('display-metrics-changed', apply)
+      screen.off('display-added', sync)
+      screen.off('display-removed', sync)
+      screen.off('display-metrics-changed', sync)
+      for (const island of windows()) island.dispose()
+      islands.clear()
     }
   }
 }

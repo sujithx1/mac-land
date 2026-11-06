@@ -1,18 +1,18 @@
-import { ipcMain, shell, type WebContents } from 'electron'
+import { ipcMain, shell } from 'electron'
 import { IpcChannel } from '@shared/ipc'
 import { visibleNotifications } from '../services/app-lock'
 import type { NativeHelper } from '../services/native-helper'
-import { IpcValidationError, assertTrustedSender } from './validate'
+import { IpcValidationError, assertTrustedSender, type TrustedSender } from './validate'
 
-export function registerNotificationIpc(helper: NativeHelper, owner: WebContents, isLocked: () => boolean): () => void {
+export function registerNotificationIpc(helper: NativeHelper, isTrusted: TrustedSender, isLocked: () => boolean): () => void {
   ipcMain.handle(IpcChannel.GetNotifications, (event) => {
-    assertTrustedSender(event, owner)
+    assertTrustedSender(event, isTrusted)
     return visibleNotifications(helper.notifications(), isLocked())
   })
 
   ipcMain.on(IpcChannel.OpenBadgeApp, (event, path: unknown) => {
     try {
-      assertTrustedSender(event, owner)
+      assertTrustedSender(event, isTrusted)
       if (isLocked()) throw new IpcValidationError('MacIsland is locked')
       // Only apps the Dock is currently showing a badge for can be opened.
       const badge = helper.notifications().badges.find((b) => b.path !== '' && b.path === path)
