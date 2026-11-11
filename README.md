@@ -60,12 +60,13 @@ and so does a lock restored after a restart.
 MacIsland shows the unread counts apps put on their Dock icons (Mail 3,
 Messages 12, ...) with each app's icon. Clicking one opens that app.
 
-The first time you run MacIsland, macOS asks to allow **MacIsland Helper** in
-System Settings > Privacy & Security > Accessibility. Turn it on. The helper
-only reads badge counts, app names and icons; it cannot read message contents.
+This needs **MacIsland Helper** turned on in System Settings > Privacy &
+Security > Accessibility. MacIsland never pops up the macOS permission dialog
+by itself; while access is missing, the menu bar icon's menu has **Allow
+Notification Counts…**, which opens that settings page. The helper only reads
+badge counts, app names and icons; it cannot read message contents.
 Rebuilding the helper (only when `native/swift-helper/Sources/main.swift`
-changes) means allowing it again. While access is missing, the menu bar icon's
-menu has **Allow Notification Counts…**, which opens that settings page.
+changes) means allowing it again.
 
 ## Browser extension (music and downloads)
 

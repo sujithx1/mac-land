@@ -76,7 +76,11 @@ export function startNativeHelper(events: HelperEvents): NativeHelper {
 
   const launch = (): void => {
     launchedAt = Date.now()
-    execFile('/usr/bin/open', ['-g', '-j', '-n', bundle, '--args', '--socket', socketPath], (error) => {
+    // Never raise the macOS Accessibility dialog on launch: it pops up on every start
+    // whenever macOS no longer matches the helper to its saved permission. While access
+    // is missing, the menu bar menu offers "Allow Notification Counts…" instead.
+    const args = ['--socket', socketPath, '--no-prompt']
+    execFile('/usr/bin/open', ['-g', '-j', '-n', bundle, '--args', ...args], (error) => {
       if (error) console.error('[native-helper] failed to launch helper:', error.message)
     })
   }
