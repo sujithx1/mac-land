@@ -1,5 +1,6 @@
 import { AnimatePresence, motion, useReducedMotion, type Transition } from 'framer-motion'
 import type { IslandGeometry } from '@shared/ipc'
+import { useDeviceAlert } from '../hooks/useDeviceAlert'
 import { islandActions, useIslandActivity } from '../hooks/useIslandActivity'
 import { useIslandInteraction } from '../hooks/useIslandInteraction'
 import { useLockTransition } from '../hooks/useLockTransition'
@@ -13,6 +14,7 @@ import {
 } from '../services/island-layout'
 import { instant, islandSpring } from '../services/motion'
 import { compactPresentation } from '../services/presentation'
+import { DeviceAlertView } from './DeviceAlert'
 import { ExpandedPanel } from './ExpandedPanel'
 import { FaceIdCard, FaceIdView, LockedCompact } from './FaceLock'
 import { CompactActivity } from './island/CompactActivity'
@@ -52,15 +54,21 @@ export function Island({ geometry }: IslandProps): React.JSX.Element {
   // is unlocked or opening with the Mac, so it may cover the lock as it opens.
   const macUnlockStage = useMacUnlockAnimation()
   const macUnlocking = macUnlockStage !== null
+  // A charger or headphones just connected. It never interrupts an open panel or the
+  // Face ID card; main only sends headphone alerts while MacIsland is unlocked.
+  const deviceAlert = useDeviceAlert()
+  const showAlert = deviceAlert !== null && !macUnlocking && !faceIdOpen && !(mode === 'expanded' && !showLock)
 
   // While locked the island never opens, whatever the interaction state says.
   const shownMode: IslandShape = macUnlocking
     ? 'face-id'
-    : showLock
-      ? faceIdOpen
-        ? 'face-id'
-        : 'compact'
-      : mode
+    : showAlert
+      ? 'alert'
+      : showLock
+        ? faceIdOpen
+          ? 'face-id'
+          : 'compact'
+        : mode
   const expanded = shownMode === 'expanded'
   const activity: PanelContent = {
     hasTrack: snapshot.nowPlaying !== null,
@@ -115,7 +123,17 @@ export function Island({ geometry }: IslandProps): React.JSX.Element {
 
         <div className="absolute inset-0 overflow-hidden" style={{ borderRadius: 'inherit' }}>
           <AnimatePresence initial={false}>
-            {showLock && !faceIdOpen && !macUnlocking && <LockedCompact key="lock" notchWidth={geometry.notchWidth} />}
+            {showLock && !faceIdOpen && !macUnlocking && !showAlert && (
+              <LockedCompact key="lock" notchWidth={geometry.notchWidth} />
+            )}
+            {showAlert && (
+              <DeviceAlertView
+                // A new alert fades in fresh instead of swapping text in place.
+                key={deviceAlert.kind === 'charging' ? 'alert-charging' : `alert-${deviceAlert.name}`}
+                alert={deviceAlert}
+                notchWidth={geometry.notchWidth}
+              />
+            )}
             {faceIdOpen && !macUnlocking && (
               <FaceIdCard
                 key="face-id"

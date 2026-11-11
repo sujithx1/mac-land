@@ -10,6 +10,17 @@ set -eu
 here="$(cd "$(dirname "$0")" && pwd)"
 app="$here/.build/MacIsland Helper.app"
 binary="$app/Contents/MacOS/macisland-helper"
+target="$(uname -m)-apple-macos13"
+
+# Headphone watcher: a plain command-line tool, separate from the helper app so
+# that changing it never resets the helper's Accessibility permission.
+watcher="$here/.build/macisland-audio-watch"
+if ! { [ -x "$watcher" ] && [ "$watcher" -nt "$here/AudioWatch/main.swift" ]; }; then
+  mkdir -p "$here/.build"
+  xcrun swiftc -O -swift-version 5 -target "$target" "$here/AudioWatch/main.swift" -o "$watcher"
+  codesign --force --sign - --identifier app.macisland.audio-watch "$watcher"
+  echo "Built $watcher"
+fi
 
 if [ -x "$binary" ] && [ "$binary" -nt "$here/Sources/main.swift" ] && [ "$binary" -nt "$here/Info.plist" ]; then
   exit 0
@@ -17,7 +28,7 @@ fi
 
 mkdir -p "$app/Contents/MacOS"
 cp "$here/Info.plist" "$app/Contents/Info.plist"
-xcrun swiftc -O -swift-version 5 -target "$(uname -m)-apple-macos13" "$here/Sources/main.swift" -o "$binary"
+xcrun swiftc -O -swift-version 5 -target "$target" "$here/Sources/main.swift" -o "$binary"
 # Ad-hoc signature: macOS ties the Accessibility grant to it, so rebuilding
 # the helper (only when its source changes) means granting access again.
 codesign --force --sign - --identifier app.macisland.helper "$app"

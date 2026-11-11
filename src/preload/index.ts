@@ -1,5 +1,6 @@
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron'
 import { IpcChannel, type IslandGeometry, type MacIslandBridge } from '@shared/ipc'
+import type { DeviceAlert } from '@shared/devices'
 import type { LockState } from '@shared/lock'
 import type { BrowserState } from '@shared/media'
 import type { NotificationState } from '@shared/notifications'
@@ -66,6 +67,11 @@ const bridge: MacIslandBridge = {
     const handler = (): void => listener()
     ipcRenderer.on(IpcChannel.MacUnlocked, handler)
     return () => ipcRenderer.off(IpcChannel.MacUnlocked, handler)
+  },
+  onDeviceAlert(listener) {
+    const handler = (_event: IpcRendererEvent, alert: DeviceAlert): void => listener(alert)
+    ipcRenderer.on(IpcChannel.DeviceAlert, handler)
+    return () => ipcRenderer.off(IpcChannel.DeviceAlert, handler)
   }
 }
 

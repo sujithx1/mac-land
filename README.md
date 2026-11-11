@@ -11,6 +11,8 @@ TypeScript, Vite, Tailwind CSS v4 and Framer Motion.
 - Works on every display: grows out of the notch on a MacBook, floats as a pill
   on external monitors, and can show on one, several or all of your screens.
 - App-level lock with Touch ID (system password as fallback).
+- Charger and Bluetooth headphones alerts: the island briefly widens with the
+  battery level when you plug in or your earbuds connect.
 
 ## Displays
 
@@ -54,6 +56,21 @@ and so does a lock restored after a restart.
   Touch ID / password sheet itself (LocalAuthentication).
 - The lock survives restarts. It protects MacIsland only and never touches the
   macOS login screen.
+
+## Charger and headphones
+
+When you plug in the charger, the island briefly widens to show "Charging"
+and the battery level, like an iPhone. When Bluetooth headphones connect
+(AirPods, earbuds, a headset), it shows their name and battery; for earbuds
+that is the lower of the two buds. Headphones that do not report a battery
+show "Connected". Turn it off with **Show Charging and Headphones** in the
+menu bar menu.
+
+- Neither needs a permission. A small watcher (`macisland-audio-watch`) asks
+  Core Audio for the names of connected Bluetooth audio devices; it never
+  opens a device or records audio. Battery levels come from `system_profiler`.
+- Headphone names are personal, so like music they are not shown while
+  MacIsland is locked. The charging alert is.
 
 ## Notifications (Dock badge counts)
 
@@ -123,7 +140,8 @@ src/
     services/browser-bridge.ts  local WebSocket server for the extension
     services/native-helper.ts   launches the Swift helper: badges, screens, Touch ID
     services/app-lock.ts        lock state machine and data gating
-    services/settings.ts        display and lock preferences (settings.json)
+    services/settings.ts        display, lock and alert preferences (settings.json)
+    services/device-alerts.ts   charger and headphones connecting
     windows/islands.ts          one island window per chosen display
   preload/index.ts          contextBridge API exposed as window.macIsland
   renderer/src/
@@ -142,6 +160,7 @@ src/
     types/activity.ts       the snapshot every component reads
 extension/                  Brave/Chrome extension: media + downloads
 native/swift-helper/        MacIsland Helper (Swift): Dock badges, screen notch sizes, Touch ID
+native/swift-helper/AudioWatch/  macisland-audio-watch: lists Bluetooth audio devices
 ```
 
 ## Testing on macOS

@@ -4,6 +4,7 @@
  * or changed payload is a compile error rather than a silent runtime bug.
  */
 
+import type { DeviceAlert } from './devices'
 import type { LockState } from './lock'
 import type { BrowserState, MediaCommand } from './media'
 import type { NotificationState } from './notifications'
@@ -39,7 +40,9 @@ export const IpcChannel = {
   /** renderer -> main (send): ask main to show Touch ID; the renderer cannot unlock itself. */
   RequestUnlock: 'lock:request-unlock',
   /** main -> renderer (push): the Mac was just unlocked at the macOS lock screen. */
-  MacUnlocked: 'system:mac-unlocked'
+  MacUnlocked: 'system:mac-unlocked',
+  /** main -> renderer (push): a charger or headphones just connected. */
+  DeviceAlert: 'system:device-alert'
 } as const
 
 export type IpcChannel = (typeof IpcChannel)[keyof typeof IpcChannel]
@@ -85,4 +88,6 @@ export interface MacIslandBridge {
   requestUnlock(): void
   /** Fires after the Mac is unlocked. Returns an unsubscribe function. */
   onMacUnlocked(listener: () => void): () => void
+  /** Fires when a charger or headphones connect. Returns an unsubscribe function. */
+  onDeviceAlert(listener: (alert: DeviceAlert) => void): () => void
 }

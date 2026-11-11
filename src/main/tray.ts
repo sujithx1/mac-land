@@ -67,6 +67,8 @@ export interface TrayController {
   badgePermission(): BadgePermission
   animateMacUnlock(): boolean
   setAnimateMacUnlock(enabled: boolean): void
+  deviceAlerts(): boolean
+  setDeviceAlerts(enabled: boolean): void
 }
 
 /** Only the installed app can start at login; in development it would register Electron itself. */
@@ -142,6 +144,12 @@ export function createTray(controller: TrayController): IslandTray {
           type: 'checkbox',
           checked: controller.animateMacUnlock(),
           click: (item) => controller.setAnimateMacUnlock(item.checked)
+        },
+        {
+          label: 'Show Charging and Headphones',
+          type: 'checkbox',
+          checked: controller.deviceAlerts(),
+          click: (item) => controller.setDeviceAlerts(item.checked)
         },
         { type: 'separator' },
         ...openAtLoginItem(),

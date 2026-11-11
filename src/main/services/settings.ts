@@ -27,13 +27,16 @@ export interface Settings {
   lockWhenMacLocks: boolean
   /** Play the Face ID style animation in the island after the Mac is unlocked. */
   animateMacUnlock: boolean
+  /** Briefly expand the island when a charger or Bluetooth headphones connect. */
+  deviceAlerts: boolean
 }
 
 const DEFAULTS: Settings = {
   displays: { all: false, chosen: [] },
   locked: false,
   lockWhenMacLocks: false,
-  animateMacUnlock: true
+  animateMacUnlock: true,
+  deviceAlerts: true
 }
 
 const settingsPath = (): string => join(app.getPath('userData'), 'settings.json')
@@ -64,13 +67,14 @@ export function loadSettings(): Settings {
   try {
     const raw: unknown = JSON.parse(readFileSync(settingsPath(), 'utf8'))
     const stored = typeof raw === 'object' && raw !== null ? (raw as Record<string, unknown>) : {}
-    const flag = (key: 'locked' | 'lockWhenMacLocks' | 'animateMacUnlock'): boolean =>
+    const flag = (key: 'locked' | 'lockWhenMacLocks' | 'animateMacUnlock' | 'deviceAlerts'): boolean =>
       typeof stored[key] === 'boolean' ? stored[key] : DEFAULTS[key]
     return {
       displays: parseDisplays(stored['displays']),
       locked: flag('locked'),
       lockWhenMacLocks: flag('lockWhenMacLocks'),
-      animateMacUnlock: flag('animateMacUnlock')
+      animateMacUnlock: flag('animateMacUnlock'),
+      deviceAlerts: flag('deviceAlerts')
     }
   } catch {
     return { ...DEFAULTS }

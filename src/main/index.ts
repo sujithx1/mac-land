@@ -8,6 +8,7 @@ import { registerSystemIpc } from './ipc/system'
 import { applySecurityPolicy } from './security'
 import { createAppLock, visibleBrowserState, visibleNotifications } from './services/app-lock'
 import { startBrowserBridge } from './services/browser-bridge'
+import { startDeviceAlerts } from './services/device-alerts'
 import { startNativeHelper } from './services/native-helper'
 import { loadSettings, saveSettings } from './services/settings'
 import { startSystemMonitor } from './services/system-monitor'
@@ -116,6 +117,19 @@ function start(): void {
   powerMonitor.on('unlock-screen', onMacUnlocked)
   disposers.push(() => powerMonitor.off('unlock-screen', onMacUnlocked))
 
+  // A charger or headphones connecting. Headphone names are personal ("Sujith's AirPods"),
+  // so like music they are not shown while MacIsland is locked; the charge level is.
+  const deviceAlerts = startDeviceAlerts({
+    refreshBattery: () => monitor.refreshBattery(),
+    onAlert: (alert) => {
+      if (!settings.deviceAlerts) return
+      if (alert.kind === 'headphones' && isLocked()) return
+      if (!app.isPackaged) console.info('[island] device alert:', alert)
+      send(IpcChannel.DeviceAlert, alert)
+    }
+  })
+  disposers.push(() => deviceAlerts.stop())
+
   const tray = createTray({
     displays: () => {
       const shown = new Set(resolveDisplays(islands.selection()).map((display) => display.id))
@@ -152,6 +166,11 @@ function start(): void {
     animateMacUnlock: () => settings.animateMacUnlock,
     setAnimateMacUnlock(enabled) {
       settings.animateMacUnlock = enabled
+      persist()
+    },
+    deviceAlerts: () => settings.deviceAlerts,
+    setDeviceAlerts(enabled) {
+      settings.deviceAlerts = enabled
       persist()
     }
   })

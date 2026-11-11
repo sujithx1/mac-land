@@ -1,8 +1,11 @@
 import type { IslandGeometry } from '@shared/ipc'
 
 export type IslandMode = 'idle' | 'compact' | 'expanded'
-/** Every shape the island can take: the interaction modes plus the Face ID card shown while unlocking. */
-export type IslandShape = IslandMode | 'face-id'
+/**
+ * Every shape the island can take: the interaction modes, the Face ID card
+ * shown while unlocking, and the wide strip for a charger or headphones alert.
+ */
+export type IslandShape = IslandMode | 'face-id' | 'alert'
 
 /** Resolved size and placement of the island for one state, in points. */
 export interface IslandFrame {
@@ -81,6 +84,10 @@ const FACE_ID_EAR = 14
 const FACE_ID_BODY_HEIGHT = 150
 const FACE_ID_RADIUS = 42
 
+/** The charger/headphones alert: the compact island stretched wide, like iPhone. Each ear fits "Sujith's AirPods Pro". */
+const ALERT_NOTCH_EAR = 160
+const ALERT_FLOATING_SIZE = { width: 300, height: 36 }
+
 /** Header height used when there is no menu bar/notch strip to align with. */
 const FLOATING_HEADER_HEIGHT = 32
 const FLOATING_TOP = 6
@@ -142,6 +149,24 @@ export function islandFrame(
           topRadius: FACE_ID_RADIUS,
           bottomRadius: FACE_ID_RADIUS
         }
+  }
+
+  if (mode === 'alert') {
+    if (isNotch) {
+      return {
+        width: geometry.notchWidth + ALERT_NOTCH_EAR * 2,
+        height: expandedHeaderHeight(geometry),
+        top: 0,
+        topRadius: 0,
+        bottomRadius: 16
+      }
+    }
+    return {
+      ...ALERT_FLOATING_SIZE,
+      top: FLOATING_TOP,
+      topRadius: ALERT_FLOATING_SIZE.height / 2,
+      bottomRadius: ALERT_FLOATING_SIZE.height / 2
+    }
   }
 
   if (mode === 'expanded') {
