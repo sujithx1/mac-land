@@ -12,13 +12,14 @@ app="$here/.build/MacIsland Helper.app"
 binary="$app/Contents/MacOS/macisland-helper"
 target="$(uname -m)-apple-macos13"
 
-# Headphone watcher: a plain command-line tool, separate from the helper app so
-# that changing it never resets the helper's Accessibility permission.
-watcher="$here/.build/macisland-audio-watch"
-if ! { [ -x "$watcher" ] && [ "$watcher" -nt "$here/AudioWatch/main.swift" ]; }; then
+# Device watcher (headphones, camera and microphone in use): a plain command-line
+# tool, separate from the helper app so that changing it never resets the
+# helper's Accessibility permission.
+watcher="$here/.build/macisland-device-watch"
+if ! { [ -x "$watcher" ] && [ "$watcher" -nt "$here/DeviceWatch/main.swift" ]; }; then
   mkdir -p "$here/.build"
-  xcrun swiftc -O -swift-version 5 -target "$target" "$here/AudioWatch/main.swift" -o "$watcher"
-  codesign --force --sign - --identifier app.macisland.audio-watch "$watcher"
+  xcrun swiftc -O -swift-version 5 -target "$target" "$here/DeviceWatch/main.swift" -o "$watcher"
+  codesign --force --sign - --identifier app.macisland.device-watch "$watcher"
   echo "Built $watcher"
 fi
 

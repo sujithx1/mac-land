@@ -12,6 +12,12 @@ export interface HeadphoneBattery {
   case: number | null
 }
 
+/** Whether any app is using a camera or the microphone right now, like the iPhone's green and orange dots. */
+export interface InUse {
+  camera: boolean
+  microphone: boolean
+}
+
 export type DeviceAlert =
   | { kind: 'charging'; percent: number; state: BatteryState }
   | { kind: 'headphones'; name: string; battery: HeadphoneBattery | null }

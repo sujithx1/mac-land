@@ -2,13 +2,13 @@ import { execFile, spawn, type ChildProcess } from 'node:child_process'
 import { join } from 'node:path'
 import { promisify } from 'node:util'
 import { app, powerMonitor } from 'electron'
-import type { DeviceAlert, HeadphoneBattery } from '@shared/devices'
+import type { DeviceAlert, HeadphoneBattery, InUse } from '@shared/devices'
 import type { BatteryStatus } from '@shared/system'
-import { parseHeadphoneBattery, parseWatcherLine } from './device-alerts-parse'
+import { parseHeadphoneBattery, parseWatcherLine, type WatcherState } from './device-alerts-parse'
 
 const run = promisify(execFile)
 
-const WATCHER = 'macisland-audio-watch'
+const WATCHER = 'macisland-device-watch'
 /** pmset still reports the old state for a moment after the cable goes in. */
 const CHARGER_SETTLE_MS = 1000
 /** Headphones report their battery shortly after connecting; ask twice before showing without it. */
@@ -40,14 +40,24 @@ export interface DeviceAlertOptions {
   /** Reads the Mac's battery now and updates the battery beside the notch. */
   refreshBattery(): Promise<BatteryStatus | null>
   onAlert(alert: DeviceAlert): void
+  /** A camera or the microphone started or stopped being used. */
+  onInUse(inUse: InUse): void
 }
 
+export interface DeviceAlerts {
+  inUse(): InUse
+  stop(): void
+}
+
+const NOT_IN_USE: InUse = { camera: false, microphone: false }
+
 /**
- * Notices a charger being plugged in (powerMonitor) and Bluetooth headphones
- * connecting (macisland-audio-watch, a small Core Audio watcher that needs no
- * permission), and reports each as an alert for the island.
+ * Notices a charger being plugged in (powerMonitor), Bluetooth headphones
+ * connecting, and cameras or the microphone being used. The last two come from
+ * macisland-device-watch, a small Core Audio / CoreMediaIO watcher that needs
+ * no permission.
  */
-export function startDeviceAlerts({ refreshBattery, onAlert }: DeviceAlertOptions): { stop(): void } {
+export function startDeviceAlerts({ refreshBattery, onAlert, onInUse }: DeviceAlertOptions): DeviceAlerts {
   let stopped = false
   const timers = new Set<NodeJS.Timeout>()
   const later = (ms: number): Promise<void> =>
@@ -73,6 +83,7 @@ export function startDeviceAlerts({ refreshBattery, onAlert }: DeviceAlertOption
 
   // Headphones. The first report is what was already connected; only later additions are announced.
   let connected: Set<string> | null = null
+  let inUse: InUse = NOT_IN_USE
   let watcher: ChildProcess | null = null
   let relaunches = 0
 
@@ -88,11 +99,18 @@ export function startDeviceAlerts({ refreshBattery, onAlert }: DeviceAlertOption
     onAlert({ kind: 'headphones', name, battery })
   }
 
-  const onDevices = (names: string[]): void => {
+  const setInUse = (next: InUse): void => {
+    if (next.camera === inUse.camera && next.microphone === inUse.microphone) return
+    inUse = next
+    onInUse(inUse)
+  }
+
+  const onState = (state: WatcherState): void => {
+    setInUse({ camera: state.camera, microphone: state.microphone })
     const previous = connected
-    connected = new Set(names)
+    connected = new Set(state.bluetooth)
     if (!previous) return
-    for (const name of names) if (!previous.has(name)) void announce(name)
+    for (const name of state.bluetooth) if (!previous.has(name)) void announce(name)
   }
 
   const launch = (): void => {
@@ -110,14 +128,16 @@ export function startDeviceAlerts({ refreshBattery, onAlert }: DeviceAlertOption
       }
       let newline: number
       while ((newline = buffer.indexOf('\n')) !== -1) {
-        const names = parseWatcherLine(buffer.slice(0, newline))
+        const state = parseWatcherLine(buffer.slice(0, newline))
         buffer = buffer.slice(newline + 1)
-        if (names) onDevices(names)
+        if (state) onState(state)
       }
     })
-    child.on('error', (error) => console.warn('[device-alerts] audio watcher failed:', error.message))
+    child.on('error', (error) => console.warn('[device-alerts] device watcher failed:', error.message))
     child.on('exit', () => {
       if (watcher === child) watcher = null
+      // Without the watcher there is no way to know; never leave a stale dot showing.
+      if (!stopped) setInUse(NOT_IN_USE)
       if (stopped || relaunches >= MAX_RELAUNCHES) return
       relaunches++
       void later(RELAUNCH_DELAY_MS).then(() => {
@@ -128,6 +148,7 @@ export function startDeviceAlerts({ refreshBattery, onAlert }: DeviceAlertOption
   launch()
 
   return {
+    inUse: () => inUse,
     stop() {
       stopped = true
       powerMonitor.off('on-ac', acListener)

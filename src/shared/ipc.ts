@@ -4,7 +4,7 @@
  * or changed payload is a compile error rather than a silent runtime bug.
  */
 
-import type { DeviceAlert } from './devices'
+import type { DeviceAlert, InUse } from './devices'
 import type { LockState } from './lock'
 import type { BrowserState, MediaCommand } from './media'
 import type { NotificationState } from './notifications'
@@ -42,7 +42,11 @@ export const IpcChannel = {
   /** main -> renderer (push): the Mac was just unlocked at the macOS lock screen. */
   MacUnlocked: 'system:mac-unlocked',
   /** main -> renderer (push): a charger or headphones just connected. */
-  DeviceAlert: 'system:device-alert'
+  DeviceAlert: 'system:device-alert',
+  /** renderer -> main (invoke): whether a camera or the microphone is in use. */
+  GetInUse: 'system:get-in-use',
+  /** main -> renderer (push): camera or microphone use started or stopped. */
+  InUseChanged: 'system:in-use-changed'
 } as const
 
 export type IpcChannel = (typeof IpcChannel)[keyof typeof IpcChannel]
@@ -90,4 +94,7 @@ export interface MacIslandBridge {
   onMacUnlocked(listener: () => void): () => void
   /** Fires when a charger or headphones connect. Returns an unsubscribe function. */
   onDeviceAlert(listener: (alert: DeviceAlert) => void): () => void
+  getInUse(): Promise<InUse>
+  /** Returns an unsubscribe function. */
+  onInUse(listener: (inUse: InUse) => void): () => void
 }

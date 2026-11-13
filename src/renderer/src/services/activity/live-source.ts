@@ -1,3 +1,4 @@
+import type { InUse } from '@shared/devices'
 import type { MacIslandBridge } from '@shared/ipc'
 import type { LockState } from '@shared/lock'
 import type { BrowserState } from '@shared/media'
@@ -19,7 +20,8 @@ export function createLiveActivitySource(bridge: MacIslandBridge): ActivitySourc
     // Safe default: the renderer holds no data until main sends it, and main
     // only sends what the lock allows. The real state arrives right away.
     lock: { phase: 'unlocked', biometry: 'unknown', error: null },
-    transfers: []
+    transfers: [],
+    inUse: { camera: false, microphone: false }
   }
 
   const emit = (next: IslandSnapshot): void => {
@@ -34,16 +36,20 @@ export function createLiveActivitySource(bridge: MacIslandBridge): ActivitySourc
 
   const applyLock = (lock: LockState): void => emit({ ...snapshot, lock })
 
+  const applyInUse = (inUse: InUse): void => emit({ ...snapshot, inUse })
+
   const connect = (): void => {
     const unsubscribeSystem = bridge.onSystemStats((system) => emit({ ...snapshot, system }))
     const unsubscribeBrowser = bridge.onBrowserState(applyBrowserState)
     const unsubscribeNotifications = bridge.onNotifications(applyNotifications)
     const unsubscribeLock = bridge.onLockState(applyLock)
+    const unsubscribeInUse = bridge.onInUse(applyInUse)
     disconnect = () => {
       unsubscribeSystem()
       unsubscribeBrowser()
       unsubscribeNotifications()
       unsubscribeLock()
+      unsubscribeInUse()
     }
 
     bridge
@@ -64,6 +70,10 @@ export function createLiveActivitySource(bridge: MacIslandBridge): ActivitySourc
       .getLockState()
       .then(applyLock)
       .catch((error: unknown) => console.error('Failed to read lock state:', error))
+    bridge
+      .getInUse()
+      .then(applyInUse)
+      .catch((error: unknown) => console.error('Failed to read camera and microphone use:', error))
   }
 
   return {

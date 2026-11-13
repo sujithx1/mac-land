@@ -16,9 +16,9 @@ files:
 extraResources:
   - from: native/swift-helper/.build/MacIsland Helper.app
     to: MacIsland Helper.app
-  # Notices Bluetooth headphones connecting (src/main/services/device-alerts.ts).
-  - from: native/swift-helper/.build/macisland-audio-watch
-    to: macisland-audio-watch
+  # Headphones connecting, camera and microphone in use (src/main/services/device-alerts.ts).
+  - from: native/swift-helper/.build/macisland-device-watch
+    to: macisland-device-watch
 
 mac:
   target:

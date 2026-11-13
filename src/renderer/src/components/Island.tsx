@@ -8,6 +8,7 @@ import { useMacUnlockAnimation } from '../hooks/useMacUnlockAnimation'
 import {
   expandedBodyHeight,
   expandedHeaderHeight,
+  IN_USE_DOT_OFFSET,
   islandFrame,
   type IslandShape,
   type PanelContent
@@ -18,6 +19,7 @@ import { DeviceAlertView } from './DeviceAlert'
 import { ExpandedPanel } from './ExpandedPanel'
 import { FaceIdCard, FaceIdView, LockedCompact } from './FaceLock'
 import { CompactActivity } from './island/CompactActivity'
+import { InUseDot, inUseColor, inUseLabel } from './island/InUseDot'
 import { NotchShoulders } from './island/NotchShoulders'
 
 interface IslandProps {
@@ -75,8 +77,12 @@ export function Island({ geometry }: IslandProps): React.JSX.Element {
     badges: snapshot.badges.length,
     transfers: snapshot.transfers.length
   }
-  const frame = islandFrame(geometry, shownMode, hovering, expandedBodyHeight(activity))
   const isNotch = geometry.variant === 'notch'
+  // Camera or microphone in use: a dot beside the notch on the small island (the
+  // expanded header shows its own), even while locked.
+  const dotColor = inUseColor(snapshot.inUse)
+  const showDot = dotColor !== null && (shownMode === 'idle' || shownMode === 'compact')
+  const frame = islandFrame(geometry, shownMode, hovering, expandedBodyHeight(activity), showDot)
 
   const onClick = macUnlocking
     ? undefined
@@ -152,6 +158,15 @@ export function Island({ geometry }: IslandProps): React.JSX.Element {
             )}
             {!showLock && !macUnlocking && shownMode === 'compact' && (
               <CompactActivity key="compact" snapshot={snapshot} notchWidth={geometry.notchWidth} />
+            )}
+            {showDot && (
+              <div
+                key="in-use"
+                className="pointer-events-none absolute top-1/2 -translate-x-1/2 -translate-y-1/2"
+                style={{ left: isNotch ? `calc(50% + ${geometry.notchWidth / 2 + IN_USE_DOT_OFFSET}px)` : '50%' }}
+              >
+                <InUseDot color={dotColor} label={inUseLabel(snapshot.inUse)} />
+              </div>
             )}
             {expanded && (
               <ExpandedPanel

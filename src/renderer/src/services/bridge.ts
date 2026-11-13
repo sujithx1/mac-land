@@ -25,7 +25,9 @@ const browserPreviewBridge: MacIslandBridge = {
   onLockState: () => () => undefined,
   requestUnlock: () => undefined,
   onMacUnlocked: () => () => undefined,
-  onDeviceAlert: () => () => undefined
+  onDeviceAlert: () => () => undefined,
+  getInUse: () => Promise.resolve({ camera: false, microphone: false }),
+  onInUse: () => () => undefined
 }
 
 export const bridge: MacIslandBridge = window.macIsland ?? browserPreviewBridge

@@ -88,6 +88,15 @@ const FACE_ID_RADIUS = 42
 const ALERT_NOTCH_EAR = 160
 const ALERT_FLOATING_SIZE = { width: 300, height: 36 }
 
+/**
+ * While a camera or the microphone is in use, each ear beside the notch grows by
+ * this much so the dot sits next to the camera housing without touching the
+ * ear's own content. The floating pill shows the dot in its empty centre instead.
+ */
+const IN_USE_EAR = 12
+/** Distance from the notch's right edge to the dot's centre. */
+export const IN_USE_DOT_OFFSET = 10
+
 /** Header height used when there is no menu bar/notch strip to align with. */
 const FLOATING_HEADER_HEIGHT = 32
 const FLOATING_TOP = 6
@@ -128,7 +137,9 @@ export function islandFrame(
   mode: IslandShape,
   hovering: boolean,
   /** Expanded panel height below the header, from expandedBodyHeight(). */
-  bodyHeight: number = EXPANDED_MUSIC_HEIGHT.playing
+  bodyHeight: number = EXPANDED_MUSIC_HEIGHT.playing,
+  /** A camera or the microphone is in use: make room for the dot. */
+  inUse = false
 ): IslandFrame {
   const isNotch = geometry.variant === 'notch'
 
@@ -184,7 +195,7 @@ export function islandFrame(
   if (isNotch) {
     // Match the menu bar so the island reads as an extension of the hardware notch.
     return {
-      width: geometry.notchWidth + NOTCH_EAR[mode] * 2 + growth.width,
+      width: geometry.notchWidth + (NOTCH_EAR[mode] + (inUse ? IN_USE_EAR : 0)) * 2 + growth.width,
       height: expandedHeaderHeight(geometry) + growth.height,
       top: 0,
       topRadius: 0,

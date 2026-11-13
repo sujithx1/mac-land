@@ -1,21 +1,29 @@
-import type { HeadphoneBattery } from '@shared/devices'
+import type { HeadphoneBattery, InUse } from '@shared/devices'
 
 /** Pure parsers for device-alerts.ts, kept free of Electron so they can be tested on their own. */
 
 const MAX_DEVICES = 32
 const MAX_NAME_LENGTH = 200
 
-/** One line from the watcher: the names of the connected Bluetooth audio devices. */
-export function parseWatcherLine(line: string): string[] | null {
+/** One line from macisland-device-watch. */
+export interface WatcherState extends InUse {
+  /** Names of the connected Bluetooth audio devices. */
+  bluetooth: string[]
+}
+
+export function parseWatcherLine(line: string): WatcherState | null {
   let value: unknown
   try {
     value = JSON.parse(line)
   } catch {
     return null
   }
-  if (!Array.isArray(value) || value.length > MAX_DEVICES) return null
-  const valid = value.every((name) => typeof name === 'string' && name.length > 0 && name.length <= MAX_NAME_LENGTH)
-  return valid ? (value as string[]) : null
+  if (typeof value !== 'object' || value === null) return null
+  const { bluetooth, camera, microphone } = value as Record<string, unknown>
+  if (!Array.isArray(bluetooth) || bluetooth.length > MAX_DEVICES) return null
+  if (typeof camera !== 'boolean' || typeof microphone !== 'boolean') return null
+  const names = bluetooth.every((name) => typeof name === 'string' && name.length > 0 && name.length <= MAX_NAME_LENGTH)
+  return names ? { bluetooth: bluetooth as string[], camera, microphone } : null
 }
 
 function percent(value: unknown): number | null {

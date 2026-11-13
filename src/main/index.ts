@@ -52,7 +52,8 @@ function start(): void {
 
   // System readings.
   const monitor = startSystemMonitor((stats) => send(IpcChannel.SystemStatsChanged, stats))
-  disposers.push(() => monitor.stop(), registerSystemIpc(monitor, isTrusted))
+  // Camera and microphone use, from `deviceAlerts` below; only asked for once the island has loaded.
+  disposers.push(() => monitor.stop(), registerSystemIpc(monitor, () => deviceAlerts.inUse(), isTrusted))
 
   // Lock gate: while locked, browser and notification data never reach the renderer.
   let locked = settings.locked
@@ -119,7 +120,9 @@ function start(): void {
 
   // A charger or headphones connecting. Headphone names are personal ("Sujith's AirPods"),
   // so like music they are not shown while MacIsland is locked; the charge level is.
+  // Camera and microphone use is a privacy signal, so it shows even while locked.
   const deviceAlerts = startDeviceAlerts({
+    onInUse: (inUse) => send(IpcChannel.InUseChanged, inUse),
     refreshBattery: () => monitor.refreshBattery(),
     onAlert: (alert) => {
       if (!settings.deviceAlerts) return

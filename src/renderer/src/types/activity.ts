@@ -1,3 +1,4 @@
+import type { InUse } from '@shared/devices'
 import type { LockState } from '@shared/lock'
 import type { NowPlaying, Transfer } from '@shared/media'
 import type { AppBadge } from '@shared/notifications'
@@ -7,6 +8,7 @@ export type { BatteryStatus, SystemStats } from '@shared/system'
 export type { NowPlaying, Track, Transfer, TransferKind } from '@shared/media'
 export type { AppBadge } from '@shared/notifications'
 export type { LockState } from '@shared/lock'
+export type { InUse } from '@shared/devices'
 
 /**
  * Everything the island can display, as one immutable snapshot.
@@ -22,6 +24,8 @@ export interface IslandSnapshot {
   /** App-level lock; while locked, main sends no music, badges or downloads. */
   lock: LockState
   transfers: readonly Transfer[]
+  /** A camera or the microphone is in use by some app; shown even while locked. */
+  inUse: InUse
 }
 
 export interface IslandActions {

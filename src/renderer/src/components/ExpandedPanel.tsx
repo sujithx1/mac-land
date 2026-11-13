@@ -11,6 +11,7 @@ import {
 import { contentEnter, contentExit, instant } from '../services/motion'
 import { currentActivityLabel } from '../services/presentation'
 import { formatMinutes } from '../services/format'
+import { InUseDot, inUseColor, inUseLabel } from './island/InUseDot'
 import { MusicPlayer } from './MusicPlayer'
 import { Notifications } from './Notifications'
 import { TransferProgress } from './TransferProgress'
@@ -91,6 +92,7 @@ function batteryDetail(battery: BatteryStatus): string | null {
 
 function Header({ geometry, snapshot }: { geometry: IslandGeometry; snapshot: IslandSnapshot }): React.JSX.Element {
   const battery = snapshot.system?.battery ?? null
+  const dotColor = inUseColor(snapshot.inUse)
 
   return (
     <div className="flex shrink-0 items-center text-[11px]" style={{ height: expandedHeaderHeight(geometry) }}>
@@ -105,15 +107,17 @@ function Header({ geometry, snapshot }: { geometry: IslandGeometry; snapshot: Is
       <div className="shrink-0" style={{ width: geometry.notchWidth }} />
 
       <div className="flex min-w-0 flex-1 items-center justify-end gap-1.5 text-white/70 tabular-nums">
-        {battery && <BatteryReadout battery={battery} />}
+        {dotColor && <InUseDot color={dotColor} label={inUseLabel(snapshot.inUse)} />}
+        {/* The dot takes the room of the time-left text, which would otherwise be cut off. */}
+        {battery && <BatteryReadout battery={battery} showDetail={!dotColor} />}
       </div>
     </div>
   )
 }
 
-function BatteryReadout({ battery }: { battery: BatteryStatus }): React.JSX.Element {
+function BatteryReadout({ battery, showDetail }: { battery: BatteryStatus; showDetail: boolean }): React.JSX.Element {
   const BatteryIcon = batteryIcon(battery)
-  const detail = batteryDetail(battery)
+  const detail = showDetail ? batteryDetail(battery) : null
   return (
     <>
       {detail && <span className="truncate text-white/40">{detail}</span>}

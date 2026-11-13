@@ -13,6 +13,7 @@ TypeScript, Vite, Tailwind CSS v4 and Framer Motion.
 - App-level lock with Touch ID (system password as fallback).
 - Charger and Bluetooth headphones alerts: the island briefly widens with the
   battery level when you plug in or your earbuds connect.
+- Camera and microphone in use: a green or orange dot beside the notch.
 
 ## Displays
 
@@ -66,11 +67,26 @@ that is the lower of the two buds. Headphones that do not report a battery
 show "Connected". Turn it off with **Show Charging and Headphones** in the
 menu bar menu.
 
-- Neither needs a permission. A small watcher (`macisland-audio-watch`) asks
+- Neither needs a permission. A small watcher (`macisland-device-watch`) asks
   Core Audio for the names of connected Bluetooth audio devices; it never
   opens a device or records audio. Battery levels come from `system_profiler`.
 - Headphone names are personal, so like music they are not shown while
   MacIsland is locked. The charging alert is.
+
+## Camera and microphone in use
+
+While any app uses a camera, a green dot shows just right of the notch (in
+the middle of the floating pill on other screens, and beside the battery in
+the expanded island). While an app records from the microphone, the dot is
+orange. It shows even while MacIsland is locked, because it is a privacy
+signal rather than personal data.
+
+- The same watcher reads this without any permission: CoreMediaIO reports
+  whether each camera is running, and Core Audio (macOS 14.2 and later)
+  reports which apps are recording. It never opens a camera or microphone.
+- macOS's own always-on speech listeners ("Hey Siri", dictation, Sound
+  Recognition) are ignored, as the macOS menu bar indicator does.
+- It cannot tell which app is using the camera; macOS does not share that.
 
 ## Notifications (Dock badge counts)
 
@@ -141,7 +157,7 @@ src/
     services/native-helper.ts   launches the Swift helper: badges, screens, Touch ID
     services/app-lock.ts        lock state machine and data gating
     services/settings.ts        display, lock and alert preferences (settings.json)
-    services/device-alerts.ts   charger and headphones connecting
+    services/device-alerts.ts   charger and headphones connecting, camera and mic in use
     windows/islands.ts          one island window per chosen display
   preload/index.ts          contextBridge API exposed as window.macIsland
   renderer/src/
@@ -160,7 +176,7 @@ src/
     types/activity.ts       the snapshot every component reads
 extension/                  Brave/Chrome extension: media + downloads
 native/swift-helper/        MacIsland Helper (Swift): Dock badges, screen notch sizes, Touch ID
-native/swift-helper/AudioWatch/  macisland-audio-watch: lists Bluetooth audio devices
+native/swift-helper/DeviceWatch/ macisland-device-watch: Bluetooth audio devices, camera and mic in use
 ```
 
 ## Testing on macOS
