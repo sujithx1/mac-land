@@ -5,6 +5,8 @@ copyright: Copyright © 2026 Sujith
 
 directories:
   output: dist
+  # Icon and other packaging inputs; not copied into the app.
+  buildResources: build
 
 # electron-vite's build output; production dependencies (ws) are added automatically.
 files:
@@ -25,6 +27,8 @@ mac:
     - target: dmg
       arch: arm64
   category: public.app-category.utilities
+  # Made from build/icon.svg with `npm run icon`.
+  icon: build/icon.icns
   # Ad-hoc signature: enough to run on this Mac. Downloads from other Macs
   # need "Open Anyway" once, or a paid Developer ID and notarization.
   identity: '-'

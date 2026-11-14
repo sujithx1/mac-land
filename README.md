@@ -120,6 +120,7 @@ npm run typecheck  # strict TypeScript for main/preload, renderer and extension
 npm run build      # typecheck + production bundle into out/
 npm run preview    # run the production bundle
 npm run dist       # build MacIsland.app and dist/MacIsland-<version>-arm64.dmg
+npm run icon       # rebuild build/icon.icns after editing build/icon.svg
 ```
 
 MacIsland has no Dock icon. Quit it from the pill icon in the menu bar
@@ -174,6 +175,8 @@ src/
       island-interaction.ts pure expand/collapse state machine
       presentation.ts       what the compact island and header show
     types/activity.ts       the snapshot every component reads
+build/icon.svg              app icon source (build/icon.icns is made from it)
+scripts/make-icon.cjs       renders the icon with Electron, then sips + iconutil
 extension/                  Brave/Chrome extension: media + downloads
 native/swift-helper/        MacIsland Helper (Swift): Dock badges, screen notch sizes, Touch ID
 native/swift-helper/DeviceWatch/ macisland-device-watch: Bluetooth audio devices, camera and mic in use

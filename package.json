@@ -19,7 +19,8 @@
     "typecheck": "npm run typecheck:node && npm run typecheck:web && npm run typecheck:extension",
     "typecheck:extension": "tsc --noEmit -p tsconfig.extension.json",
     "build:native": "sh native/swift-helper/build.sh",
-    "dist": "npm run build && electron-builder --mac"
+    "dist": "npm run build && electron-builder --mac",
+    "icon": "electron scripts/make-icon.cjs"
   },
   "dependencies": {
     "framer-motion": "^14.9.0",
