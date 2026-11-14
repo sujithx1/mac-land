@@ -10,6 +10,8 @@ export type InteractionEvent =
   | { type: 'pointer-leave' }
   | { type: 'expand' }
   | { type: 'collapse' }
+  /** Close immediately, even under the pointer (e.g. MacIsland was just locked). */
+  | { type: 'force-collapse' }
 
 export const initialInteraction: InteractionState = { expanded: false, hovering: false }
 
@@ -24,6 +26,8 @@ export function interactionReducer(state: InteractionState, event: InteractionEv
     case 'collapse':
       // Never collapse out from under the pointer.
       return state.expanded && !state.hovering ? { ...state, expanded: false } : state
+    case 'force-collapse':
+      return state.expanded ? { ...state, expanded: false } : state
   }
 }
 

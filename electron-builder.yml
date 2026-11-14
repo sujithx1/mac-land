@@ -1,0 +1,42 @@
+# Packages MacIsland into MacIsland.app and a .dmg installer (npm run dist).
+appId: app.macisland
+productName: MacIsland
+copyright: Copyright © 2026 Sujith
+
+directories:
+  output: dist
+  # Icon and other packaging inputs; not copied into the app.
+  buildResources: build
+
+# electron-vite's build output; production dependencies (ws) are added automatically.
+files:
+  - out/**/*
+  - package.json
+
+# The Swift helper ships as its own app inside MacIsland.app/Contents/Resources,
+# where the main process looks for it (process.resourcesPath).
+extraResources:
+  - from: native/swift-helper/.build/MacIsland Helper.app
+    to: MacIsland Helper.app
+  # Headphones connecting, camera and microphone in use (src/main/services/device-alerts.ts).
+  - from: native/swift-helper/.build/macisland-device-watch
+    to: macisland-device-watch
+
+mac:
+  target:
+    - target: dmg
+      arch: arm64
+  category: public.app-category.utilities
+  # Made from build/icon.svg with `npm run icon`.
+  icon: build/icon.icns
+  # Ad-hoc signature: enough to run on this Mac. Downloads from other Macs
+  # need "Open Anyway" once, or a paid Developer ID and notarization.
+  identity: '-'
+  hardenedRuntime: false
+  extendInfo:
+    # Menu bar app: no Dock icon and no app menu, from the very first frame.
+    LSUIElement: true
+
+dmg:
+  title: MacIsland
+  artifactName: MacIsland-${version}-${arch}.dmg

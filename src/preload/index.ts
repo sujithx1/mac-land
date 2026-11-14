@@ -1,5 +1,7 @@
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron'
 import { IpcChannel, type IslandGeometry, type MacIslandBridge } from '@shared/ipc'
+import type { DeviceAlert, InUse } from '@shared/devices'
+import type { LockState } from '@shared/lock'
 import type { BrowserState } from '@shared/media'
 import type { NotificationState } from '@shared/notifications'
 import type { SystemStats } from '@shared/system'
@@ -50,8 +52,34 @@ const bridge: MacIslandBridge = {
   openBadgeApp(path) {
     ipcRenderer.send(IpcChannel.OpenBadgeApp, path)
   },
-  openAccessibilitySettings() {
-    ipcRenderer.send(IpcChannel.OpenAccessibilitySettings)
+  getLockState() {
+    return ipcRenderer.invoke(IpcChannel.GetLockState) as Promise<LockState>
+  },
+  onLockState(listener) {
+    const handler = (_event: IpcRendererEvent, state: LockState): void => listener(state)
+    ipcRenderer.on(IpcChannel.LockStateChanged, handler)
+    return () => ipcRenderer.off(IpcChannel.LockStateChanged, handler)
+  },
+  requestUnlock() {
+    ipcRenderer.send(IpcChannel.RequestUnlock)
+  },
+  onMacUnlocked(listener) {
+    const handler = (): void => listener()
+    ipcRenderer.on(IpcChannel.MacUnlocked, handler)
+    return () => ipcRenderer.off(IpcChannel.MacUnlocked, handler)
+  },
+  onDeviceAlert(listener) {
+    const handler = (_event: IpcRendererEvent, alert: DeviceAlert): void => listener(alert)
+    ipcRenderer.on(IpcChannel.DeviceAlert, handler)
+    return () => ipcRenderer.off(IpcChannel.DeviceAlert, handler)
+  },
+  getInUse() {
+    return ipcRenderer.invoke(IpcChannel.GetInUse) as Promise<InUse>
+  },
+  onInUse(listener) {
+    const handler = (_event: IpcRendererEvent, inUse: InUse): void => listener(inUse)
+    ipcRenderer.on(IpcChannel.InUseChanged, handler)
+    return () => ipcRenderer.off(IpcChannel.InUseChanged, handler)
   }
 }
 

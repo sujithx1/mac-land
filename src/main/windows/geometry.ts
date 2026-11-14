@@ -10,30 +10,35 @@ const WINDOW_WIDTH = 720
 const WINDOW_HEIGHT = 400
 
 /**
- * Notched MacBooks report a taller menu bar (it matches the camera housing).
- * Non-notched displays sit around 24-25pt. This heuristic is replaced by
- * NSScreen.safeAreaInsets from the Swift helper in a later phase.
+ * Fallback until the helper reports exact screen data: notched MacBooks have
+ * a taller menu bar (it matches the camera housing), plain displays ~24pt.
  */
 const NOTCH_MENU_BAR_THRESHOLD = 30
+const FALLBACK_NOTCH_WIDTH = 185
 
-/**
- * Camera housing width on current notched MacBook Pro/Air panels
- * (NSScreen.auxiliaryTopLeftArea/RightArea leave a 185pt gap).
- */
-const NOTCH_WIDTH = 185
+/** Camera housing size reported by the helper from NSScreen. */
+export interface ScreenNotch {
+  width: number
+  height: number
+}
 
 export function menuBarHeightOf(display: Display): number {
   return Math.max(0, display.workArea.y - display.bounds.y)
 }
 
-export function computeIslandGeometry(display: Display): IslandGeometry {
+/** `notch` is the helper's exact reading for this display, when available. */
+export function computeIslandGeometry(display: Display, notch?: ScreenNotch): IslandGeometry {
   const menuBarHeight = menuBarHeightOf(display)
-  const hasNotch = display.internal && menuBarHeight >= NOTCH_MENU_BAR_THRESHOLD
+  const notchWidth = notch
+    ? notch.width
+    : display.internal && menuBarHeight >= NOTCH_MENU_BAR_THRESHOLD
+      ? FALLBACK_NOTCH_WIDTH
+      : 0
 
   return {
-    variant: hasNotch ? 'notch' : 'floating',
+    variant: notchWidth > 0 ? 'notch' : 'floating',
     menuBarHeight,
-    notchWidth: hasNotch ? NOTCH_WIDTH : 0,
+    notchWidth,
     windowWidth: Math.min(WINDOW_WIDTH, display.bounds.width),
     windowHeight: Math.min(WINDOW_HEIGHT, display.bounds.height)
   }

@@ -1,5 +1,5 @@
-import { ShieldCheck } from 'lucide-react'
-import type { AppBadge, BadgePermission } from '../types/activity'
+import type { AppBadge } from '../types/activity'
+import { ACTIVITY_VISIBLE_ROWS } from '../services/island-layout'
 import { sortedBadges, unreadTotal } from '../services/presentation'
 import { AppIcon } from './ui/AppIcon'
 import { CountBadge } from './ui/CountBadge'
@@ -7,50 +7,27 @@ import { SectionLabel } from './ui/SectionLabel'
 
 interface NotificationsProps {
   badges: readonly AppBadge[]
-  permission: BadgePermission
   onOpenApp: (path: string) => void
-  onOpenSettings: () => void
 }
 
-const VISIBLE = 2
-
-export function Notifications({ badges, permission, onOpenApp, onOpenSettings }: NotificationsProps): React.JSX.Element {
+/** Heights here match ACTIVITY_ROW in island-layout, which sizes the island. */
+export function Notifications({ badges, onOpenApp }: NotificationsProps): React.JSX.Element {
   const ordered = sortedBadges(badges)
-  const hidden = ordered.length - VISIBLE
+  const hidden = ordered.length - ACTIVITY_VISIBLE_ROWS
   const total = unreadTotal(badges)
 
   return (
     <section aria-label="Notifications" className="min-w-0">
       <SectionLabel trailing={total > 0 ? `${total} unread` : undefined}>Notifications</SectionLabel>
 
-      {permission === 'denied' ? (
-        <div className="flex items-start gap-2.5 pt-1">
-          <ShieldCheck size={16} className="mt-0.5 shrink-0 text-white/50" />
-          <div className="min-w-0">
-            <p className="text-[11px] leading-snug text-white/60">
-              Allow <span className="text-white/85">MacIsland Helper</span> in Accessibility to show unread counts from your apps.
-            </p>
-            <button
-              type="button"
-              onClick={onOpenSettings}
-              className="mt-1.5 rounded-full bg-white/10 px-2.5 py-1 text-[11px] font-medium text-white transition-colors hover:bg-white/20"
-            >
-              Open Settings
-            </button>
-          </div>
-        </div>
-      ) : ordered.length === 0 ? (
-        <p className="pt-3 text-[12px] text-white/35">No unread notifications</p>
-      ) : (
         <ul className="flex flex-col gap-0.5">
-          {ordered.slice(0, VISIBLE).map((badge) => (
+          {ordered.slice(0, ACTIVITY_VISIBLE_ROWS).map((badge) => (
             <li key={badge.path || badge.app}>
               <BadgeRow badge={badge} onOpen={onOpenApp} />
             </li>
           ))}
-          {hidden > 0 && <li className="px-1.5 text-[10px] text-white/35">+{hidden} more apps</li>}
+          {hidden > 0 && <li className="flex h-4 items-center px-1.5 text-[10px] text-white/35">+{hidden} more apps</li>}
         </ul>
-      )}
     </section>
   )
 }
@@ -64,7 +41,7 @@ function BadgeRow({ badge, onOpen }: { badge: AppBadge; onOpen: (path: string) =
       disabled={!badge.path}
       onClick={() => onOpen(badge.path)}
       title={`Open ${badge.app}`}
-      className="flex w-full items-center gap-2.5 rounded-xl px-1.5 py-1.5 text-left transition-colors enabled:hover:bg-white/[0.06]"
+      className="flex h-10 w-full items-center gap-2.5 rounded-xl px-1.5 text-left transition-colors enabled:hover:bg-white/[0.06]"
     >
       <AppIcon icon={badge.icon} size={28} />
       <span className="min-w-0 flex-1">

@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <!-- MacIsland app icon. Source for build/icon.icns: run `npm run icon` after editing. -->
+  <!-- Follows the macOS icon grid: an 824 pt rounded square centred on a 1024 canvas, with the standard drop shadow. -->
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#7d8bff"/>
+      <stop offset="0.5" stop-color="#5b4fe0"/>
+      <stop offset="1" stop-color="#2a1f6e"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.5" cy="0.3" r="0.75">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.28"/>
+      <stop offset="0.55" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="shade" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0.45" stop-color="#140a45" stop-opacity="0"/>
+      <stop offset="1" stop-color="#140a45" stop-opacity="0.45"/>
+    </linearGradient>
+    <linearGradient id="art" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ffb340"/>
+      <stop offset="1" stop-color="#ff375f"/>
+    </linearGradient>
+    <linearGradient id="pillEdge" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.18"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0.04"/>
+    </linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="125%">
+      <feDropShadow dx="0" dy="12" stdDeviation="14" flood-color="#000" flood-opacity="0.32"/>
+    </filter>
+    <filter id="pillShadow" x="-20%" y="-50%" width="140%" height="220%">
+      <feDropShadow dx="0" dy="18" stdDeviation="22" flood-color="#0b0630" flood-opacity="0.55"/>
+    </filter>
+    <clipPath id="body">
+      <rect x="100" y="100" width="824" height="824" rx="185"/>
+    </clipPath>
+  </defs>
+
+  <!-- Body -->
+  <g filter="url(#shadow)">
+    <rect x="100" y="100" width="824" height="824" rx="185" fill="url(#bg)"/>
+  </g>
+  <g clip-path="url(#body)">
+    <rect x="100" y="100" width="824" height="824" fill="url(#glow)"/>
+    <!-- Deepens toward the bottom, like a wallpaper behind the island. -->
+    <rect x="100" y="100" width="824" height="824" fill="url(#shade)"/>
+  </g>
+  <rect x="101.5" y="101.5" width="821" height="821" rx="183.5" fill="none" stroke="#ffffff" stroke-opacity="0.16" stroke-width="3"/>
+
+  <!-- The island, with a live activity: album art on the left, equalizer on the right. -->
+  <g filter="url(#pillShadow)">
+    <rect x="212" y="392" width="600" height="190" rx="95" fill="#000"/>
+  </g>
+  <rect x="213.5" y="393.5" width="597" height="187" rx="93.5" fill="none" stroke="url(#pillEdge)" stroke-width="3"/>
+
+  <rect x="262" y="432" width="110" height="110" rx="28" fill="url(#art)"/>
+  <!-- Music note -->
+  <g fill="#fff">
+    <ellipse cx="306" cy="512" rx="17" ry="13" transform="rotate(-22 306 512)"/>
+    <rect x="316" y="452" width="8" height="62" rx="4"/>
+    <path d="M320 452c13 4 27 11 29 30c-7-8-17-11-29-13z"/>
+  </g>
+
+  <g fill="#30d158">
+    <rect x="644" y="452" width="22" height="70" rx="11"/>
+    <rect x="680" y="430" width="22" height="114" rx="11"/>
+    <rect x="716" y="462" width="22" height="50" rx="11"/>
+    <rect x="752" y="440" width="22" height="94" rx="11"/>
+  </g>
+</svg>

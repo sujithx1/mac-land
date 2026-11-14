@@ -1,8 +1,9 @@
-import { ipcMain, type WebContents } from 'electron'
+import { ipcMain } from 'electron'
 import { IpcChannel } from '@shared/ipc'
 import { MEDIA_COMMANDS, type MediaCommand } from '@shared/media'
+import { visibleBrowserState } from '../services/app-lock'
 import type { BrowserBridge } from '../services/browser-bridge'
-import { IpcValidationError, assertTrustedSender } from './validate'
+import { IpcValidationError, assertTrustedSender, type TrustedSender } from './validate'
 
 function assertMediaCommand(value: unknown): asserts value is MediaCommand {
   if (!MEDIA_COMMANDS.includes(value as MediaCommand)) {
@@ -10,16 +11,17 @@ function assertMediaCommand(value: unknown): asserts value is MediaCommand {
   }
 }
 
-export function registerBrowserIpc(bridge: BrowserBridge, owner: WebContents): () => void {
+export function registerBrowserIpc(bridge: BrowserBridge, isTrusted: TrustedSender, isLocked: () => boolean): () => void {
   ipcMain.handle(IpcChannel.GetBrowserState, (event) => {
-    assertTrustedSender(event, owner)
-    return bridge.state()
+    assertTrustedSender(event, isTrusted)
+    return visibleBrowserState(bridge.state(), isLocked())
   })
 
   ipcMain.on(IpcChannel.SendMediaCommand, (event, command: unknown) => {
     try {
-      assertTrustedSender(event, owner)
+      assertTrustedSender(event, isTrusted)
       assertMediaCommand(command)
+      if (isLocked()) throw new IpcValidationError('MacIsland is locked')
       bridge.sendCommand(command)
     } catch (error) {
       console.warn(`[ipc] ${IpcChannel.SendMediaCommand}:`, (error as Error).message)

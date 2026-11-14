@@ -1,12 +1,20 @@
-import { ipcMain, type WebContents } from 'electron'
+import { ipcMain } from 'electron'
 import { IpcChannel } from '@shared/ipc'
+import type { InUse } from '@shared/devices'
 import type { SystemMonitor } from '../services/system-monitor'
-import { assertTrustedSender } from './validate'
+import { assertTrustedSender, type TrustedSender } from './validate'
 
-export function registerSystemIpc(monitor: SystemMonitor, owner: WebContents): () => void {
+export function registerSystemIpc(monitor: SystemMonitor, inUse: () => InUse, isTrusted: TrustedSender): () => void {
   ipcMain.handle(IpcChannel.GetSystemStats, (event) => {
-    assertTrustedSender(event, owner)
+    assertTrustedSender(event, isTrusted)
     return monitor.latest()
   })
-  return () => ipcMain.removeHandler(IpcChannel.GetSystemStats)
+  ipcMain.handle(IpcChannel.GetInUse, (event) => {
+    assertTrustedSender(event, isTrusted)
+    return inUse()
+  })
+  return () => {
+    ipcMain.removeHandler(IpcChannel.GetSystemStats)
+    ipcMain.removeHandler(IpcChannel.GetInUse)
+  }
 }

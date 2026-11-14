@@ -69,6 +69,8 @@ export function parsePmset(output: string): BatteryStatus | null {
 
 export interface SystemMonitor {
   latest(): SystemStats | null
+  /** Reads the battery now instead of waiting for the next scheduled read, and reports it. */
+  refreshBattery(): Promise<BatteryStatus | null>
   stop(): void
 }
 
@@ -126,6 +128,14 @@ export function startSystemMonitor(onSample: (stats: SystemStats) => void): Syst
 
   return {
     latest: () => latest,
+    async refreshBattery() {
+      battery = await readBattery()
+      if (latest && !stopped) {
+        latest = { ...latest, battery }
+        onSample(latest)
+      }
+      return battery
+    },
     stop() {
       stopped = true
       clearTimeout(firstSample)
