@@ -1,38 +1,61 @@
-import { motion, useReducedMotion } from 'framer-motion'
+import { useEffect, useRef } from 'react'
+import { useReducedMotion } from 'framer-motion'
+import { subscribeTicker } from '../../services/ticker'
 
 interface EqualizerProps {
   playing: boolean
   color: string
 }
 
-/** Per-bar keyframes and timing, offset so the bars never move in lockstep. */
+/** Per-bar height range and speed, offset so the bars never move in lockstep. */
 const BARS = [
-  { heights: [0.35, 0.9, 0.5, 1, 0.4], duration: 1.1 },
-  { heights: [0.8, 0.4, 1, 0.55, 0.85], duration: 0.9 },
-  { heights: [0.5, 1, 0.35, 0.8, 0.6], duration: 1.25 },
-  { heights: [0.9, 0.55, 0.75, 0.35, 1], duration: 1 }
+  { low: 0.35, high: 1, period: 1.1, offset: 0 },
+  { low: 0.4, high: 1, period: 0.9, offset: 1.3 },
+  { low: 0.35, high: 1, period: 1.25, offset: 2.1 },
+  { low: 0.35, high: 1, period: 1, offset: 0.6 }
 ] as const
 
+const PAUSED = 0.25
+const STILL = 0.6
+
+/**
+ * Four bars that bounce while music plays. They move on the shared 12 fps
+ * ticker (see services/ticker.ts), like a real level meter, instead of a
+ * 120 Hz loop.
+ */
 export function Equalizer({ playing, color }: EqualizerProps): React.JSX.Element {
   const reduceMotion = useReducedMotion()
   const animate = playing && !reduceMotion
+  const bars = useRef<(HTMLSpanElement | null)[]>([])
+
+  useEffect(() => {
+    const set = (index: number, scale: number): void => {
+      const bar = bars.current[index]
+      if (bar) bar.style.transform = `scaleY(${scale.toFixed(3)})`
+    }
+    if (!animate) {
+      BARS.forEach((_, index) => set(index, playing ? STILL : PAUSED))
+      return
+    }
+    return subscribeTicker((seconds) => {
+      BARS.forEach(({ low, high, period, offset }, index) => {
+        // Two waves per bar give an irregular, music-like bounce.
+        const wave = (Math.sin(((seconds + offset) * Math.PI * 2) / period) + Math.sin((seconds + offset) * 7.3) * 0.35) / 1.35
+        set(index, low + ((wave + 1) / 2) * (high - low))
+      })
+    })
+  }, [animate, playing])
 
   return (
     <div aria-hidden className="flex h-3.5 items-center gap-[2.5px]">
-      {BARS.map((bar, index) => (
-        <motion.span
+      {BARS.map((_, index) => (
+        <span
           key={index}
-          className="block h-full w-[3px] rounded-full"
-          style={{ backgroundColor: color, originY: 0.5 }}
-          // `initial={false}` would jump a looping animation to its last keyframe and never start it,
-          // so a bar that appears while music is already playing starts from its first height.
-          initial={animate ? { scaleY: bar.heights[0] } : false}
-          animate={animate ? { scaleY: [...bar.heights] } : { scaleY: playing ? 0.6 : 0.25 }}
-          transition={
-            animate
-              ? { duration: bar.duration, repeat: Infinity, repeatType: 'mirror', ease: 'easeInOut' }
-              : { duration: 0.3 }
-          }
+          ref={(element) => {
+            bars.current[index] = element
+          }}
+          className="block h-full w-[3px] origin-center rounded-full transition-none"
+          style={{ backgroundColor: color, transform: `scaleY(${playing ? STILL : PAUSED})` }}
         />
       ))}
     </div>
