@@ -27,6 +27,8 @@ export const IpcChannel = {
   BrowserStateChanged: 'browser:state-changed',
   /** renderer -> main (send): play/pause/skip in the browser tab that is playing. */
   SendMediaCommand: 'browser:media-command',
+  /** renderer -> main (send): jump to a position (seconds) in the playing track. */
+  SeekMedia: 'browser:seek',
   /** renderer -> main (invoke): Dock badge counts and permission state. */
   GetNotifications: 'notifications:get',
   /** main -> renderer (push): badge counts or permission changed. */
@@ -82,6 +84,8 @@ export interface MacIslandBridge {
   /** Returns an unsubscribe function. */
   onBrowserState(listener: (state: BrowserState) => void): () => void
   sendMediaCommand(command: MediaCommand): void
+  /** Jumps to a position in seconds in the playing track. */
+  seekMedia(position: number): void
   getNotifications(): Promise<NotificationState>
   /** Returns an unsubscribe function. */
   onNotifications(listener: (state: NotificationState) => void): () => void

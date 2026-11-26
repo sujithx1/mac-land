@@ -38,6 +38,9 @@ const bridge: MacIslandBridge = {
     ipcRenderer.on(IpcChannel.BrowserStateChanged, handler)
     return () => ipcRenderer.off(IpcChannel.BrowserStateChanged, handler)
   },
+  seekMedia(position) {
+    ipcRenderer.send(IpcChannel.SeekMedia, position)
+  },
   sendMediaCommand(command) {
     ipcRenderer.send(IpcChannel.SendMediaCommand, command)
   },

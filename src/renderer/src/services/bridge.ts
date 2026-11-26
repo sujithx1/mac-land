@@ -18,6 +18,7 @@ const browserPreviewBridge: MacIslandBridge = {
   getBrowserState: () => Promise.resolve({ nowPlaying: null, transfers: [] }),
   onBrowserState: () => () => undefined,
   sendMediaCommand: () => undefined,
+  seekMedia: () => undefined,
   getNotifications: () => Promise.resolve({ permission: 'unknown', badges: [] }),
   onNotifications: () => () => undefined,
   openBadgeApp: () => undefined,

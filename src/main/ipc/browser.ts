@@ -1,6 +1,6 @@
 import { ipcMain } from 'electron'
 import { IpcChannel } from '@shared/ipc'
-import { MEDIA_COMMANDS, type MediaCommand } from '@shared/media'
+import { MEDIA_COMMANDS, isSeekPosition, type MediaCommand } from '@shared/media'
 import { visibleBrowserState } from '../services/app-lock'
 import type { BrowserBridge } from '../services/browser-bridge'
 import { IpcValidationError, assertTrustedSender, type TrustedSender } from './validate'
@@ -28,8 +28,20 @@ export function registerBrowserIpc(bridge: BrowserBridge, isTrusted: TrustedSend
     }
   })
 
+  ipcMain.on(IpcChannel.SeekMedia, (event, position: unknown) => {
+    try {
+      assertTrustedSender(event, isTrusted)
+      if (!isSeekPosition(position)) throw new IpcValidationError(`Invalid seek position: ${String(position)}`)
+      if (isLocked()) throw new IpcValidationError('MacIsland is locked')
+      bridge.seek(position)
+    } catch (error) {
+      console.warn(`[ipc] ${IpcChannel.SeekMedia}:`, (error as Error).message)
+    }
+  })
+
   return () => {
     ipcMain.removeHandler(IpcChannel.GetBrowserState)
     ipcMain.removeAllListeners(IpcChannel.SendMediaCommand)
+    ipcMain.removeAllListeners(IpcChannel.SeekMedia)
   }
 }

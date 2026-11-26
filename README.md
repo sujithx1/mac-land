@@ -107,6 +107,12 @@ changes) means allowing it again.
 2. Click **Load unpacked** and choose the `extension/` folder in this project.
 3. Play something on YouTube, YouTube Music, SoundCloud, Spotify Web or Apple Music web.
 
+In the expanded island, tap or drag the progress bar to jump within the
+track (arrow keys move 5 seconds). Next on a single YouTube video plays
+YouTube's "Up next" video, as its own next button does. After updating
+MacIsland, reload the extension on `brave://extensions` to get changes like
+these.
+
 The extension talks only to MacIsland on this Mac (`ws://127.0.0.1:47652`), and
 MacIsland accepts connections only from this extension's fixed ID. If Brave asks
 whether the extension may access local network devices, allow it.
