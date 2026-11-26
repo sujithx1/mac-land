@@ -1,4 +1,5 @@
 import { Menu, Tray, app, nativeImage, shell, type NativeImage } from 'electron'
+import type { CharacterChoice } from '@shared/ipc'
 import type { LockState } from '@shared/lock'
 import type { BadgePermission } from '@shared/notifications'
 
@@ -69,6 +70,8 @@ export interface TrayController {
   setAnimateMacUnlock(enabled: boolean): void
   deviceAlerts(): boolean
   setDeviceAlerts(enabled: boolean): void
+  character(): CharacterChoice
+  setCharacter(choice: CharacterChoice): void
 }
 
 /** Only the installed app can start at login; in development it would register Electron itself. */
@@ -85,6 +88,13 @@ function openAtLoginItem(): Electron.MenuItemConstructorOptions[] {
     { type: 'separator' }
   ]
 }
+
+/** Who lives below the island, as the menu lists it. */
+const CHARACTER_MENU: { choice: CharacterChoice; label: string }[] = [
+  { choice: 'hero', label: 'Skyline (Climbing Hero)' },
+  { choice: 'spider', label: 'Spider' },
+  { choice: 'none', label: 'None' }
+]
 
 export interface IslandTray {
   /** Rebuild the menu after state it shows has changed. */
@@ -150,6 +160,17 @@ export function createTray(controller: TrayController): IslandTray {
           type: 'checkbox',
           checked: controller.deviceAlerts(),
           click: (item) => controller.setDeviceAlerts(item.checked)
+        },
+        {
+          label: 'Character',
+          submenu: CHARACTER_MENU.map(
+            ({ choice, label }): Electron.MenuItemConstructorOptions => ({
+              label,
+              type: 'radio',
+              checked: controller.character() === choice,
+              click: () => controller.setCharacter(choice)
+            })
+          )
         },
         { type: 'separator' },
         ...openAtLoginItem(),

@@ -58,6 +58,38 @@ and so does a lock restored after a restart.
 - The lock survives restarts. It protects MacIsland only and never touches the
   macOS login screen.
 
+## Characters below the island
+
+Menu bar icon > **Character** picks who lives below the island:
+
+- **Skyline (Climbing Hero)**, the default: MacIsland's own hero in a navy
+  suit with a glowing teal visor, gold grip pads and an orange scarf. He
+  crawls along the underside of the island the way climbers cling to a
+  building: body close to the edge, elbows and knees out, each hand and foot
+  planted while the body moves past it (two-bone inverse kinematics), in
+  diagonal pairs. He rests at each end, crawls faster to music, drops on a
+  grapple line when a charger, headphones or a Mac unlock arrives, and holds
+  on while the island is open.
+- **Spider**: a little spider on a silk thread that sways, blinks, dances to
+  music and drops with a spin on the same events.
+- **None**.
+
+Characters never take clicks. They and the equalizer bars move on one shared
+12 fps clock, like a cartoon, instead of looping at the display's 120 Hz: a
+looping animation in the transparent island window made it repaint non-stop
+(about a third of a CPU core for the bars alone). While a character rests,
+the window does not repaint at all.
+
+### Personal characters
+
+A build can swap the chosen character for your own: put a component as the
+default export of `src/renderer/src/components/island/personal/index.tsx`
+(see `characters.ts` for what it receives; export `null` to keep the menu's
+choice). That folder is git-ignored, so it
+never reaches the repository. Any DMG built while it exists includes it, so
+move the folder out before building a DMG to publish. Style it with inline
+styles: Tailwind skips git-ignored files and would not generate its classes.
+
 ## Charger and headphones
 
 When you plug in the charger, the island briefly widens to show "Charging"

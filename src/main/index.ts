@@ -53,7 +53,7 @@ function start(): void {
   // System readings.
   const monitor = startSystemMonitor((stats) => send(IpcChannel.SystemStatsChanged, stats))
   // Camera and microphone use, from `deviceAlerts` below; only asked for once the island has loaded.
-  disposers.push(() => monitor.stop(), registerSystemIpc(monitor, () => deviceAlerts.inUse(), isTrusted))
+  disposers.push(() => monitor.stop(), registerSystemIpc(monitor, () => deviceAlerts.inUse(), () => ({ character: settings.character }), isTrusted))
 
   // Lock gate: while locked, browser and notification data never reach the renderer.
   let locked = settings.locked
@@ -175,6 +175,13 @@ function start(): void {
     setDeviceAlerts(enabled) {
       settings.deviceAlerts = enabled
       persist()
+    },
+    character: () => settings.character,
+    setCharacter(choice) {
+      settings.character = choice
+      persist()
+      send(IpcChannel.AppearanceChanged, { character: choice })
+      tray.refresh()
     }
   })
   disposers.push(() => tray.destroy())

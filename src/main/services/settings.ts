@@ -1,6 +1,7 @@
 import { readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { app } from 'electron'
+import { CHARACTER_CHOICES, type CharacterChoice } from '@shared/ipc'
 
 /** A display picked in the menu, remembered by id and by name: ids can change when a monitor is reconnected. */
 export interface DisplayChoice {
@@ -29,6 +30,8 @@ export interface Settings {
   animateMacUnlock: boolean
   /** Briefly expand the island when a charger or Bluetooth headphones connect. */
   deviceAlerts: boolean
+  /** Who lives below the island. */
+  character: CharacterChoice
 }
 
 const DEFAULTS: Settings = {
@@ -36,7 +39,8 @@ const DEFAULTS: Settings = {
   locked: false,
   lockWhenMacLocks: false,
   animateMacUnlock: true,
-  deviceAlerts: true
+  deviceAlerts: true,
+  character: 'hero'
 }
 
 const settingsPath = (): string => join(app.getPath('userData'), 'settings.json')
@@ -62,6 +66,13 @@ function parseDisplays(value: unknown): DisplaySelection {
   }
 }
 
+/** The stored choice; an older "spider: false" from the Show Spider switch means nobody. */
+function parseCharacter(stored: Record<string, unknown>): CharacterChoice {
+  const value = stored['character']
+  if (CHARACTER_CHOICES.includes(value as CharacterChoice)) return value as CharacterChoice
+  return stored['spider'] === false ? 'none' : DEFAULTS.character
+}
+
 /** Reads settings, keeping only known, valid values; anything else falls back to defaults. */
 export function loadSettings(): Settings {
   try {
@@ -74,7 +85,8 @@ export function loadSettings(): Settings {
       locked: flag('locked'),
       lockWhenMacLocks: flag('lockWhenMacLocks'),
       animateMacUnlock: flag('animateMacUnlock'),
-      deviceAlerts: flag('deviceAlerts')
+      deviceAlerts: flag('deviceAlerts'),
+      character: parseCharacter(stored)
     }
   } catch {
     return { ...DEFAULTS }
