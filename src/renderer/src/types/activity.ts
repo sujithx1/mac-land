@@ -32,6 +32,8 @@ export interface IslandActions {
   togglePlayback(): void
   nextTrack(): void
   previousTrack(): void
+  /** Jumps to a position in seconds in the playing track. */
+  seek(position: number): void
   openBadgeApp(path: string): void
   /** Asks main to show Touch ID; only main can unlock. */
   requestUnlock(): void

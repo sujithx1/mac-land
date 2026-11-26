@@ -65,7 +65,9 @@ function connect() {
       return
     }
     if (message?.type === 'command' && MEDIA_COMMANDS.includes(message.command)) {
-      routeCommand(/** @type {MediaCommand} */ (message.command))
+      void routeCommand(/** @type {MediaCommand} */ (message.command))
+    } else if (message?.type === 'seek' && isSeekPosition(message.position)) {
+      routeSeek(message.position)
     }
   }
 
@@ -108,13 +110,54 @@ function publishMedia(force = false) {
   send({ type: 'media', media })
 }
 
-/** @param {MediaCommand} command */
-function routeCommand(command) {
+/**
+ * Runs in the page itself (not the content script's isolated world), where
+ * YouTube's player exposes nextVideo(): the "Up next" video, or the next one in
+ * a playlist. Used when the site's next button is hidden, as on a single video.
+ * Must stay self-contained: it is serialized and injected.
+ */
+function youtubeNextVideo() {
+  if (!/(^|\.)youtube\.com$/.test(location.hostname)) return false
+  const player = /** @type {{ nextVideo?: () => void } | null} */ (/** @type {unknown} */ (document.getElementById('movie_player')))
+  if (typeof player?.nextVideo !== 'function') return false
+  player.nextVideo()
+  return true
+}
+
+/** Keep in sync with isSeekPosition in src/shared/media.ts. @param {unknown} value @returns {value is number} */
+function isSeekPosition(value) {
+  return typeof value === 'number' && Number.isFinite(value) && value >= 0 && value <= 24 * 60 * 60
+}
+
+/** @param {number} position */
+function routeSeek(position) {
   const active = activeTab()
   if (!active) return
   /** @type {WorkerMessage} */
-  const message = { type: 'command', command }
+  const message = { type: 'seek', position }
   chrome.tabs.sendMessage(active[0], message).catch(() => tabs.delete(active[0]))
+}
+
+/** @param {MediaCommand} command */
+async function routeCommand(command) {
+  const active = activeTab()
+  if (!active) return
+  const [tabId] = active
+  /** @type {WorkerMessage} */
+  const message = { type: 'command', command }
+  /** @type {{ handled?: boolean } | undefined} */
+  let response
+  try {
+    response = await chrome.tabs.sendMessage(tabId, message)
+  } catch {
+    tabs.delete(tabId)
+    return
+  }
+  if (command === 'next' && response?.handled === false) {
+    await chrome.scripting
+      .executeScript({ target: { tabId }, world: 'MAIN', func: youtubeNextVideo })
+      .catch(() => undefined)
+  }
 }
 
 chrome.runtime.onMessage.addListener((/** @type {ContentMessage} */ message, sender) => {

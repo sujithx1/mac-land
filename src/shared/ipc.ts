@@ -10,6 +10,15 @@ import type { BrowserState, MediaCommand } from './media'
 import type { NotificationState } from './notifications'
 import type { SystemStats } from './system'
 
+/** Who lives below the island: Skyline the climbing hero, the little spider, or nobody. */
+export const CHARACTER_CHOICES = ['hero', 'spider', 'none'] as const
+export type CharacterChoice = (typeof CHARACTER_CHOICES)[number]
+
+/** Look-and-feel choices from the menu bar menu that the island needs to know. */
+export interface Appearance {
+  character: CharacterChoice
+}
+
 export const IpcChannel = {
   /** renderer -> main (send): toggle whether the island window accepts mouse input. */
   SetInteractive: 'island:set-interactive',
@@ -27,6 +36,8 @@ export const IpcChannel = {
   BrowserStateChanged: 'browser:state-changed',
   /** renderer -> main (send): play/pause/skip in the browser tab that is playing. */
   SendMediaCommand: 'browser:media-command',
+  /** renderer -> main (send): jump to a position (seconds) in the playing track. */
+  SeekMedia: 'browser:seek',
   /** renderer -> main (invoke): Dock badge counts and permission state. */
   GetNotifications: 'notifications:get',
   /** main -> renderer (push): badge counts or permission changed. */
@@ -46,7 +57,11 @@ export const IpcChannel = {
   /** renderer -> main (invoke): whether a camera or the microphone is in use. */
   GetInUse: 'system:get-in-use',
   /** main -> renderer (push): camera or microphone use started or stopped. */
-  InUseChanged: 'system:in-use-changed'
+  InUseChanged: 'system:in-use-changed',
+  /** renderer -> main (invoke): appearance choices. */
+  GetAppearance: 'island:get-appearance',
+  /** main -> renderer (push): an appearance choice changed in the menu. */
+  AppearanceChanged: 'island:appearance-changed'
 } as const
 
 export type IpcChannel = (typeof IpcChannel)[keyof typeof IpcChannel]
@@ -82,6 +97,8 @@ export interface MacIslandBridge {
   /** Returns an unsubscribe function. */
   onBrowserState(listener: (state: BrowserState) => void): () => void
   sendMediaCommand(command: MediaCommand): void
+  /** Jumps to a position in seconds in the playing track. */
+  seekMedia(position: number): void
   getNotifications(): Promise<NotificationState>
   /** Returns an unsubscribe function. */
   onNotifications(listener: (state: NotificationState) => void): () => void
@@ -97,4 +114,7 @@ export interface MacIslandBridge {
   getInUse(): Promise<InUse>
   /** Returns an unsubscribe function. */
   onInUse(listener: (inUse: InUse) => void): () => void
+  getAppearance(): Promise<Appearance>
+  /** Returns an unsubscribe function. */
+  onAppearance(listener: (appearance: Appearance) => void): () => void
 }

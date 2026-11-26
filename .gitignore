@@ -5,3 +5,6 @@ dist
 *.log
 native/swift-helper/.build
 *.tsbuildinfo
+
+# Personal characters for your own build only (see src/renderer/src/components/island/characters.ts).
+src/renderer/src/components/island/personal/

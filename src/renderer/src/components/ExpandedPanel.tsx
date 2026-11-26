@@ -1,4 +1,5 @@
-import { motion, useReducedMotion } from 'framer-motion'
+import { useState } from 'react'
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { Battery, BatteryCharging, BatteryFull, BatteryLow, BatteryMedium, type LucideIcon } from 'lucide-react'
 import type { IslandGeometry } from '@shared/ipc'
 import type { BatteryStatus, IslandActions, IslandSnapshot } from '../types/activity'
@@ -43,17 +44,22 @@ export function ExpandedPanel({ geometry, height, activity, snapshot, actions }:
       animate={{ opacity: 1, scale: 1, filter: 'blur(0px)', transition: reduceMotion ? instant : contentEnter }}
       exit={{ opacity: 0, scale: 0.98, filter: 'blur(6px)', transition: reduceMotion ? instant : contentExit }}
     >
+      <AmbientGlow
+        url={snapshot.nowPlaying?.track.artworkUrl ?? null}
+        playing={snapshot.nowPlaying?.isPlaying ?? false}
+      />
+
       <Header geometry={geometry} snapshot={snapshot} />
 
-      <div className="mt-2 min-w-0">
+      <div className="relative mt-2 min-w-0">
         <MusicPlayer nowPlaying={snapshot.nowPlaying} actions={actions} />
       </div>
 
       {(notifications || transfers) && (
         <>
-          <div className="my-3 h-px shrink-0 bg-white/[0.08]" />
+          <div className="relative my-3 h-px shrink-0 bg-white/[0.08]" />
           {/* A section with nothing in it is left out; a lone section takes the full width. */}
-          <div className={`grid min-h-0 gap-5 ${notifications && transfers ? 'grid-cols-2' : 'grid-cols-1'}`}>
+          <div className={`relative grid min-h-0 gap-5 ${notifications && transfers ? 'grid-cols-2' : 'grid-cols-1'}`}>
             {notifications && (
               <Notifications
                 badges={snapshot.badges}
@@ -65,6 +71,45 @@ export function ExpandedPanel({ geometry, height, activity, snapshot, actions }:
         </>
       )}
     </motion.div>
+  )
+}
+
+/**
+ * The cover, blurred and dimmed, glowing behind the player in its own colours,
+ * like Now Playing on the iPhone lock screen. Brighter while playing; fades
+ * across track changes. Nothing is drawn without real artwork.
+ */
+function AmbientGlow({ url, playing }: { url: string | null; playing: boolean }): React.JSX.Element {
+  const reduceMotion = useReducedMotion()
+  const [failedUrl, setFailedUrl] = useState<string | null>(null)
+  const show = url !== null && failedUrl !== url
+
+  return (
+    <div
+      aria-hidden
+      className="pointer-events-none absolute inset-0 overflow-hidden"
+      // Strongest behind the cover, gone well before the bottom of the panel.
+      style={{ maskImage: 'radial-gradient(120% 90% at 18% 22%, black 0%, transparent 70%)' }}
+    >
+      <AnimatePresence>
+        {show && (
+          <motion.img
+            key={url}
+            src={url}
+            alt=""
+            draggable={false}
+            referrerPolicy="no-referrer"
+            onError={() => setFailedUrl(url)}
+            className="absolute top-2 left-0 size-[260px] object-cover"
+            style={{ filter: 'blur(44px) saturate(1.6)' }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: playing ? 0.55 : 0.28 }}
+            exit={{ opacity: 0 }}
+            transition={reduceMotion ? instant : { duration: 0.8, ease: 'easeOut' }}
+          />
+        )}
+      </AnimatePresence>
+    </div>
   )
 }
 
@@ -95,7 +140,7 @@ function Header({ geometry, snapshot }: { geometry: IslandGeometry; snapshot: Is
   const dotColor = inUseColor(snapshot.inUse)
 
   return (
-    <div className="flex shrink-0 items-center text-[11px]" style={{ height: expandedHeaderHeight(geometry) }}>
+    <div className="relative flex shrink-0 items-center text-[11px]" style={{ height: expandedHeaderHeight(geometry) }}>
       <div className="flex min-w-0 flex-1 items-center gap-1.5 text-white/70">
         <span className="relative flex size-1.5">
           <span className="absolute inline-flex size-full animate-ping rounded-full bg-emerald-400 opacity-60 motion-reduce:hidden" />

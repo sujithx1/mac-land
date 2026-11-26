@@ -92,6 +92,7 @@ export function createLiveActivitySource(bridge: MacIslandBridge): ActivitySourc
     togglePlayback: () => bridge.sendMediaCommand('toggle'),
     nextTrack: () => bridge.sendMediaCommand('next'),
     previousTrack: () => bridge.sendMediaCommand('previous'),
+    seek: (position) => bridge.seekMedia(position),
     openBadgeApp: (path) => bridge.openBadgeApp(path),
     requestUnlock: () => bridge.requestUnlock()
   }

@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron'
-import { IpcChannel, type IslandGeometry, type MacIslandBridge } from '@shared/ipc'
+import { IpcChannel, type Appearance, type IslandGeometry, type MacIslandBridge } from '@shared/ipc'
 import type { DeviceAlert, InUse } from '@shared/devices'
 import type { LockState } from '@shared/lock'
 import type { BrowserState } from '@shared/media'
@@ -37,6 +37,9 @@ const bridge: MacIslandBridge = {
     const handler = (_event: IpcRendererEvent, state: BrowserState): void => listener(state)
     ipcRenderer.on(IpcChannel.BrowserStateChanged, handler)
     return () => ipcRenderer.off(IpcChannel.BrowserStateChanged, handler)
+  },
+  seekMedia(position) {
+    ipcRenderer.send(IpcChannel.SeekMedia, position)
   },
   sendMediaCommand(command) {
     ipcRenderer.send(IpcChannel.SendMediaCommand, command)
@@ -80,6 +83,14 @@ const bridge: MacIslandBridge = {
     const handler = (_event: IpcRendererEvent, inUse: InUse): void => listener(inUse)
     ipcRenderer.on(IpcChannel.InUseChanged, handler)
     return () => ipcRenderer.off(IpcChannel.InUseChanged, handler)
+  },
+  getAppearance() {
+    return ipcRenderer.invoke(IpcChannel.GetAppearance) as Promise<Appearance>
+  },
+  onAppearance(listener) {
+    const handler = (_event: IpcRendererEvent, appearance: Appearance): void => listener(appearance)
+    ipcRenderer.on(IpcChannel.AppearanceChanged, handler)
+    return () => ipcRenderer.off(IpcChannel.AppearanceChanged, handler)
   }
 }
 

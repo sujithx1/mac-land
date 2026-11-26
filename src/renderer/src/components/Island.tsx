@@ -1,5 +1,7 @@
+import { useEffect, useState } from 'react'
 import { AnimatePresence, motion, useReducedMotion, type Transition } from 'framer-motion'
 import type { IslandGeometry } from '@shared/ipc'
+import { useAppearance } from '../hooks/useAppearance'
 import { useDeviceAlert } from '../hooks/useDeviceAlert'
 import { islandActions, useIslandActivity } from '../hooks/useIslandActivity'
 import { useIslandInteraction } from '../hooks/useIslandInteraction'
@@ -20,6 +22,9 @@ import { ExpandedPanel } from './ExpandedPanel'
 import { FaceIdCard, FaceIdView, LockedCompact } from './FaceLock'
 import { CompactActivity } from './island/CompactActivity'
 import { InUseDot, inUseColor, inUseLabel } from './island/InUseDot'
+import { PersonalCharacters } from './island/characters'
+import { CrawlingHero } from './island/CrawlingHero'
+import { NotchSpider, type SpiderMood } from './island/NotchSpider'
 import { NotchShoulders } from './island/NotchShoulders'
 
 interface IslandProps {
@@ -95,8 +100,25 @@ export function Island({ geometry }: IslandProps): React.JSX.Element {
         : expand
   const label = showLock ? 'MacIsland is locked. Click to unlock.' : expanded ? 'MacIsland' : 'Open MacIsland'
 
+  // The character below the island (Skyline, the spider, or a personal one): it holds
+  // on while the island is open, livens up with music, and drops whenever a
+  // charger, headphones or a Mac unlock arrives.
+  const { character } = useAppearance()
+  const Crawler = character === 'none' ? null : (PersonalCharacters ?? (character === 'hero' ? CrawlingHero : null))
+  const [excitement, setExcitement] = useState(0)
+  const macUnlockStarted = macUnlockStage === 'face'
+  useEffect(() => {
+    if (deviceAlert || macUnlockStarted) setExcitement((count) => count + 1)
+  }, [deviceAlert, macUnlockStarted])
+  const spiderMood: SpiderMood =
+    shownMode === 'expanded' || shownMode === 'face-id' ? 'clinging' : snapshot.nowPlaying?.isPlaying ? 'dancing' : 'idle'
+  // Hangs from the flat part of the bottom edge, right of centre (34 is the spider's width).
+  const spiderX = frame.width / 2 - frame.bottomRadius - 6 - 17
+  // Personal characters walk along the whole flat part of that edge instead.
+  const edgeWidth = Math.max(0, frame.width - frame.bottomRadius * 2 - 8)
+
   return (
-    <div className="flex justify-center">
+    <div className="relative flex justify-center">
       <motion.div
         role={expanded ? 'region' : 'button'}
         aria-label={label}
@@ -181,6 +203,27 @@ export function Island({ geometry }: IslandProps): React.JSX.Element {
           </AnimatePresence>
         </div>
       </motion.div>
+
+      {Crawler && (
+        <motion.div
+          className="pointer-events-none absolute left-1/2"
+          initial={false}
+          animate={{ top: frame.top + frame.height, x: -edgeWidth / 2, width: edgeWidth }}
+          transition={reduceMotion ? instant : islandSpring}
+        >
+          <Crawler mood={spiderMood} excitement={excitement} edgeWidth={edgeWidth} />
+        </motion.div>
+      )}
+      {character === 'spider' && !Crawler && (
+        <motion.div
+          className="pointer-events-none absolute left-1/2"
+          initial={false}
+          animate={{ top: frame.top + frame.height, x: spiderX }}
+          transition={reduceMotion ? instant : islandSpring}
+        >
+          <NotchSpider mood={spiderMood} excitement={excitement} />
+        </motion.div>
+      )}
     </div>
   )
 }

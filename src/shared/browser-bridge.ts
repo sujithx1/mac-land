@@ -50,11 +50,13 @@ export type ExtensionMessage =
   | { type: 'ping' }
 
 /** app -> extension */
-export type AppMessage = { type: 'command'; command: MediaCommand }
+export type AppMessage = { type: 'command'; command: MediaCommand } | { type: 'seek'; position: number }
 
 /** content script <-> service worker, inside the extension */
 export type ContentMessage = { type: 'media'; media: TabMedia | null }
 export type WorkerMessage =
   | { type: 'command'; command: MediaCommand }
+  /** Jump to a position in seconds in the playing media. */
+  | { type: 'seek'; position: number }
   /** Sent after the service worker restarts, which loses what tabs had reported. */
   | { type: 'report' }

@@ -37,6 +37,11 @@ export interface Transfer {
 export const MEDIA_COMMANDS = ['toggle', 'next', 'previous'] as const
 export type MediaCommand = (typeof MEDIA_COMMANDS)[number]
 
+/** A seek target must be a real position in seconds; nothing plays longer than a day. */
+export function isSeekPosition(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value) && value >= 0 && value <= 24 * 60 * 60
+}
+
 /** Everything the browser extension currently knows about. */
 export interface BrowserState {
   nowPlaying: NowPlaying | null

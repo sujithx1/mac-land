@@ -27,6 +27,8 @@ interface Client {
 export interface BrowserBridge {
   state(): BrowserState
   sendCommand(command: MediaCommand): void
+  /** Jumps to a position in seconds in the playing tab. */
+  seek(position: number): void
   stop(): void
 }
 
@@ -170,6 +172,12 @@ export function startBrowserBridge(onChange: (state: BrowserState) => void): Bro
       const active = activeClient()
       if (!active) return
       const message: AppMessage = { type: 'command', command }
+      active[0].send(JSON.stringify(message))
+    },
+    seek(position) {
+      const active = activeClient()
+      if (!active) return
+      const message: AppMessage = { type: 'seek', position }
       active[0].send(JSON.stringify(message))
     },
     stop() {
