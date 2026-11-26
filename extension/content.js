@@ -139,25 +139,37 @@ function start() {
     send({ type: 'media', media: state })
   }
 
-  /** @param {string | null} selector */
+  /**
+   * Clicks the site's own button. A page can hold several copies (YouTube keeps
+   * hidden ones for the miniplayer), so the first one actually on screen is used.
+   * @param {string | null} selector
+   */
   function clickControl(selector) {
-    const control = selector ? document.querySelector(selector) : null
-    if (!(control instanceof HTMLElement) || control.getClientRects().length === 0) return false
-    if (control.hasAttribute('disabled') || control.getAttribute('aria-disabled') === 'true') return false
-    control.click()
-    return true
+    if (!selector) return false
+    for (const control of document.querySelectorAll(selector)) {
+      if (!(control instanceof HTMLElement) || control.getClientRects().length === 0) continue
+      if (control.hasAttribute('disabled') || control.getAttribute('aria-disabled') === 'true') continue
+      control.click()
+      return true
+    }
+    return false
   }
 
-  /** @param {MediaCommand} command */
+  /**
+   * @param {MediaCommand} command
+   * @returns {boolean} false when the command could not be carried out here
+   */
   function run(command) {
     const media = findMedia()
+    let handled = true
     switch (command) {
       case 'toggle':
         if (media?.paused) media.play().catch(() => undefined)
         else media?.pause()
         break
       case 'next':
-        clickControl(site.next)
+        // YouTube hides its next button on a single video; the service worker then asks the player itself.
+        handled = clickControl(site.next)
         break
       case 'previous':
         if (media && media.currentTime > RESTART_THRESHOLD_S) media.currentTime = 0
@@ -165,10 +177,20 @@ function start() {
         break
     }
     setTimeout(() => report(true), 250)
+    return handled
   }
 
-  chrome.runtime.onMessage.addListener((/** @type {WorkerMessage} */ message) => {
-    if (message?.type === 'command') run(message.command)
+  /** @param {number} position seconds */
+  function seek(position) {
+    const media = findMedia()
+    if (!media || !Number.isFinite(media.duration) || media.duration <= 0) return
+    media.currentTime = Math.min(Math.max(0, position), media.duration)
+    report(true)
+  }
+
+  chrome.runtime.onMessage.addListener((/** @type {WorkerMessage} */ message, _sender, sendResponse) => {
+    if (message?.type === 'command') sendResponse({ handled: run(message.command) })
+    else if (message?.type === 'seek') seek(message.position)
     else if (message?.type === 'report') report(true)
   })
 
